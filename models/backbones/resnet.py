@@ -1,7 +1,11 @@
+# Author: Chang Liu
+# Some codes are refered from https://github.com/facebookresearch/pycls
+
+
 import torch
 import torch.nn as nn
 from core.config import cfg
-from typing import Union
+from typing import Union, Optional
 
 
 # _resnet_type = cfg.RESNET.TYPE
@@ -16,33 +20,22 @@ def _get_trans_block(trans_block_name: str) -> Union["ResBasicBlock", "ResBottle
 
 
 class ResBasicBlock(nn.Module):
-    """Basic block in ResNet-34.
-
-    Layers:
-    * conv (kernel_size = 3, stride = stride, 
-        padding = 1, w_in = w_in, w_out = w_out)
-    * batch_normalization
-    * reLu
-    * conv (kernel_size = 3, stride = 1, padding = 1,
-        w_in = w_out, w_out = w_out)
-    * batch_normalization
-    * relu (if a residual connection exists,
-        apply this relu after the residual)
+    """The basic transformation block in ResNet-18/34.
     """
     
     def __init__(
             self, 
             stride: int,
-            w_in: int,
-            w_out: int,
-            w_b: int = None
+            c_in: int,
+            c_out: int,
+            c_b: int = None
         ) -> None:
         super(ResBasicBlock, self).__init__()
-        self.a_cnn = nn.Conv2d(w_in, w_out, 3, stride, 1)
-        self.a_bn = nn.BatchNorm2d(w_out)
+        self.a_cnn = nn.Conv2d(c_in, c_out, 3, stride, 1)
+        self.a_bn = nn.BatchNorm2d(c_out)
         self.a_af = nn.ReLU()
-        self.b_cnn = nn.Conv2d(w_out, w_out, 3, 1, 1)
-        self.b_bn = nn.BatchNorm2d(w_out)
+        self.b_cnn = nn.Conv2d(c_out, c_out, 3, 1, 1)
+        self.b_bn = nn.BatchNorm2d(c_out)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         for layer in self.children():
@@ -51,40 +44,25 @@ class ResBasicBlock(nn.Module):
 
 
 class ResBottleneckBlock(nn.Module):
-    """Bottleneck block in ResNet-50/101/152: 
-    
-    Layers:
-    * conv (kernel_size = 1, stride = 1, padding = 0
-        w_in = w_in, w_out = w_b)
-    * barch_normalization
-    * relu
-    * conv (kernel_size = 3, stride = stride, padding = 1
-        w_in = w_b, w_out = w_b)
-    * batch_normalization
-    * relu
-    * conv (kernel_size = 1, stride = 1, padding = 0,
-        w_in = w_b, w_out = w_out)
-    * batch_normalization
-    * relu (if a residual connection exists,
-        apply this relu after the residual)
+    """The bottleneck transformation block in ResNet-50/101/152: 
     """
 
     def __init__(
             self,
             stride: int,
-            w_in: int,
-            w_out: int,
-            w_b: int
+            c_in: int,
+            c_out: int,
+            c_b: int
         ) -> None:
         super(ResBottleneckBlock, self).__init__()
-        self.a_cnn = nn.Conv2d(w_in, w_b, 1, 1, 0)
-        self.a_bn = nn.BatchNorm2d(w_b)
+        self.a_cnn = nn.Conv2d(c_in, c_b, 1, 1, 0)
+        self.a_bn = nn.BatchNorm2d(c_b)
         self.a_af = nn.ReLU()
-        self.b_cnn = nn.Conv2d(w_b, w_b, 3, stride, 1)
-        self.b_bn = nn.BatchNorm2d(w_b)
+        self.b_cnn = nn.Conv2d(c_b, c_b, 3, stride, 1)
+        self.b_bn = nn.BatchNorm2d(c_b)
         self.b_af = nn.ReLU()
-        self.c_cnn = nn.Conv2d(w_b, w_out, 1, 1, 0)
-        self.c_bn = nn.BatchNorm2d(w_out)
+        self.c_cnn = nn.Conv2d(c_b, c_out, 1, 1, 0)
+        self.c_bn = nn.BatchNorm2d(c_out)
     
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         for layer in self.children():
@@ -93,37 +71,26 @@ class ResBottleneckBlock(nn.Module):
 
 
 class ResResidualBlock(nn.Module):
-    """
-    Residual block used in all ResNet series.
-
-    Layers:
-    * ResBasicBlock or ResBottleneckBlock
-    * residual connection
-        * if feature map sized is halved:
-            * conv (kernel_size = 1, stride = 1, padding = 0
-                w_in = w_in, w_out = w_out)
-            * batch_normalization
-        * else:
-            * identy_map
+    """The residual block used in all ResNet series.
     """
 
     def __init__(
             self,
             stride: int,
-            w_in: int,
-            w_out: int,
-            w_b: int,
-            trans_block: str
+            c_in: int,
+            c_out: int,
+            c_b: int,
+            trans_block_name: str
         ) -> None:
         super(ResResidualBlock, self).__init__()
         self.res_cnn = None
         self.res_bn = None
         self.af = nn.ReLU()
-        if w_in != w_out or stride > 1:
-            self.res_cnn = nn.Conv2d(w_in, w_out, 1, stride, 0)
-            self.res_bn = nn.BatchNorm2d(w_out)
-        trans_block = _get_trans_block(trans_block)
-        self.trans_block = trans_block(stride, w_in, w_out, w_b)
+        if c_in != c_out or stride > 1:
+            self.res_cnn = nn.Conv2d(c_in, c_out, 1, stride, 0)
+            self.res_bn = nn.BatchNorm2d(c_out)
+        trans_block = _get_trans_block(trans_block_name)
+        self.trans_block = trans_block(stride, c_in, c_out, c_b)
     
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         X_ = self.trans_block(X)
@@ -131,6 +98,24 @@ class ResResidualBlock(nn.Module):
             X_ += self.res_bn(self.res_cnn(X))
         X_ = self.af(X_)
         return X_
+
+
+class ResStage(nn.Module):
+    """Stage of ResNet
+    """
+
+    def __init__(
+            self, 
+            c_in: int, 
+            c_out: int, 
+            stride: int,
+            d: int,
+            c_b: Optional[int] = None,
+        ):
+        super(ResStage, self).__init__()
+        for i in range(d):
+            if i
+        
 
 
 if __name__ == "__main__":
