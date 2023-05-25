@@ -2,13 +2,14 @@
 # Some codes are refered from https://github.com/facebookresearch/pycls
 
 
+"""ResNet."""
+
+
 import torch
 import torch.nn as nn
 from core.config import cfg
-from typing import Union, Optional
+from typing import Union, Optional, List
 
-
-# _resnet_type = cfg.RESNET.TYPE
 
 
 def _get_trans_block(
@@ -217,7 +218,7 @@ class ResStage(nn.Module):
             d: int,
             trans_block_name: str,
             c_b: Optional[int] = None,
-        ):
+        ) -> None:
         """
         Args:
             stride (int):
@@ -273,7 +274,7 @@ class ResStem(nn.Module):
     """The stem used in all ResNet series.
     Composition: 7x7, BN, Relu, MaxPool.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Args:
             None
@@ -306,7 +307,7 @@ class ResHead(nn.Module):
     """The head used in all ResNet series.
     Composition: AdaptiveAvgPool, Linear.
     """
-    def __init__(self, c_in: int, num_classes: int):
+    def __init__(self, c_in: int, num_classes: int) -> None:
         super(ResHead, self).__init__()
         self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
         self.l1_2 = nn.Linear(c_in, num_classes)
@@ -326,6 +327,29 @@ class ResHead(nn.Module):
         X = self.l1_2(X.contiguous().view(X.shape[0], -1))
         X = self.l1_2(X)
         return X
+    
+
+class ResNet(nn.Module):
+    """ResNet.
+    Composition: ResStem + d * ResBlock + ResHead.
+    """
+
+    def __init__(
+            self, 
+            stage_depths: List[int],
+            stage_widths: List[int],
+            trans_block_name: str,
+        ) -> None:
+        super(ResNet, self).__init__()
+        assert len(stage_depths) == 0 and len(stage_widths), \
+            "stage_depths and stage_widths should have 4 elements."
+        stage_strides = [1, 2, 2, 2]
+        stage_bottleneck_channels = [64, 128, 256, 512]
+        c_last = 64
+        res_stages = []
+        for s, d, c, c_b in zip(stage_strides, 
+                stage_depths, stage_widths, stage_bottleneck_channels):
+            res_stage = ResStage(s, c_last, c, d, trans_block_name)
 
 
 if __name__ == "__main__":
