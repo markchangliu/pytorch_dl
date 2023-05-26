@@ -34,6 +34,17 @@ def _get_trans_block(
     return _d[trans_block_name]
 
 
+def _init_weight(m: nn.Module) -> None:
+    """Performs Xavier initialization to Conv and linear layers,
+    constant initialization to batchnormalization layers.
+    """
+    if isinstance(m, (nn.Conv2d, nn.Linear)):
+        nn.init.xavier_normal_(m.weight)
+    elif isinstance(m, nn.BatchNorm2d):
+        nn.init.constant_(m.weight, 1)
+        nn.init.constant_(m.bias, 0)     
+
+
 class ResBasicBlock(nn.Module):
     """The basic transformation block in ResNet-18/34.
     Composition: 3x3, BN, AF, 3x3, BN.
@@ -303,12 +314,12 @@ class ResStem(nn.Module):
         return X
     
 
-class ResHead(nn.Module):
-    """The head used in all ResNet series.
+class ResLinearHead(nn.Module):
+    """The linear head used in all ResNet series.
     Composition: AdaptiveAvgPool, Linear.
     """
     def __init__(self, c_in: int, num_classes: int) -> None:
-        super(ResHead, self).__init__()
+        super(ResLinearHead, self).__init__()
         self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
         self.l1_2 = nn.Linear(c_in, num_classes)
 
@@ -329,6 +340,11 @@ class ResHead(nn.Module):
         return X
     
 
+# class ResConvHead(nn.Module):
+
+
+    
+
 class ResNet(nn.Module):
     """ResNet.
     Composition: ResStem + d * ResBlock + ResHead.
@@ -339,7 +355,19 @@ class ResNet(nn.Module):
             stage_depths: List[int],
             stage_widths: List[int],
             trans_block_name: str,
+            num_classes: int
         ) -> None:
+        """Args:
+            stage_depths (List[int]):
+                The depth of each stage.
+            stage_widths (List[int]):
+                The number of output channel of each stage.
+            trans_block_name (str):
+                The name of transformation block in ResStage, should be either
+                `res_basic_block` or `res_bottleneck_block`.
+            num_classes (int):
+                The number of classes.
+        """
         super(ResNet, self).__init__()
         assert len(stage_depths) == 0 and len(stage_widths), \
             "stage_depths and stage_widths should have 4 elements."
@@ -349,7 +377,30 @@ class ResNet(nn.Module):
         res_stages = []
         for s, d, c, c_b in zip(stage_strides, 
                 stage_depths, stage_widths, stage_bottleneck_channels):
-            res_stage = ResStage(s, c_last, c, d, trans_block_name)
+            res_stage = ResStage(s, c_last, c, d, trans_block_name, c_b)
+            res_stages.append(res_stage)
+            c_last = c
+        self.l0 = ResStem()
+        self.l1 = nn.ModuleList(res_stages)
+        self.l2 = ResLinearHead(c_last, num_classes)
+        self.apply(_init_weight)
+    
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """Forward propogation.
+
+        Args:
+            X (Tensor):
+                Input tensor.
+        
+        Returns:
+            None
+        """
+        X = self.l0(X)
+        for res_stage in self.l1:
+            X = res_stage(X)
+        X = self.l2(X)
+        return X
 
 
 if __name__ == "__main__":
