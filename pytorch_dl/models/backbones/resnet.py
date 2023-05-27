@@ -54,7 +54,7 @@ class ResBasicBlock(nn.Module):
             stride: int,
             c_in: int,
             c_out: int,
-            c_b: int = None
+            c_b: Optional[int] = None
         ) -> None:
         """
         Args:
@@ -66,7 +66,7 @@ class ResBasicBlock(nn.Module):
                 Number of input channel.
             c_out (int):
                 Number of output channel.
-            c_b (int):
+            c_b (Optional[int]):
                 Number of bottleneck channel, not used in this class. 
                 It's here for the purpose of api consistency.
         
@@ -88,7 +88,8 @@ class ResBasicBlock(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            output (Tensor):
+                Output feature maps.
         """
         for layer in self.children():
             X = layer(X)
@@ -141,7 +142,8 @@ class ResBottleneckBlock(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            output (Tensor):
+                Output feature maps.
         """
         for layer in self.children():
             X = layer(X)
@@ -159,7 +161,7 @@ class ResResidualBlock(nn.Module):
             stride: int,
             c_in: int,
             c_out: int,
-            c_b: int,
+            c_b: Optional[int],
             trans_block_name: str
         ) -> None:
         """
@@ -172,7 +174,7 @@ class ResResidualBlock(nn.Module):
                 Number of input channel.
             c_out (int):
                 Number of output channel.
-            c_b (int):
+            c_b (Optional[int]):
                 Number of bottleneck channel. If `trans_block_name==
                 res_basic_block`, this arg will not be used.
             trans_block_name (str):
@@ -206,7 +208,8 @@ class ResResidualBlock(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            output (Tensor):
+                Output feature maps.
         """
         X_ = self.l1_1["trans_block"](X)
         if self.l1_1["shortcut"]:
@@ -244,7 +247,7 @@ class ResStage(nn.Module):
             trans_block_name (str):
                 Name of the transformation block, should be one of
                 `res_basic_block` or `res_bottleneck_block`.
-            c_b (int):
+            c_b (Optional[int]):
                 Number of bottleneck channel. If `trans_block_name==
                 res_basic_block`, this arg will not be used. Default
                 None.
@@ -273,7 +276,8 @@ class ResStage(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            output (Tensor):
+                Output feature maps.
         """
         for res_block in self.res_blocks:
             X = res_block(X)
@@ -308,7 +312,8 @@ class ResStem(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            output (Tensor):
+                Output feature maps.
         """
         X = self.l1(X)
         return X
@@ -341,7 +346,8 @@ class ResLinearHead(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            logit (Tensor):
+                The predicted classification logit.
         """
         X = self.l1_1(X)
         X = self.l1_2(X.contiguous().view(X.shape[0], -1))
@@ -375,11 +381,55 @@ class ResConvHead(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            logit (Tensor):
+                The predicted classification logit.
         """
         X = self.l1_1(X)
         X = self.l1_2(X.contiguous().view(X.shape[0], -1))
         X = self.l1_2(X)
+        return X
+    
+
+class ResLightHead(nn.Module):
+    """A light-weight classification head for all ResNet series.
+    Composition: AdaptiveAvgPool2d.
+
+    This head is supposed to receive a (H, W, num_classes) shaped 
+    tensor from ResStage. The adaptive pool operation of this head will
+    then directly output the score tensor of shape (1, 1, num_classes).
+    """
+    def __init__(
+            self, 
+            c_in: Optional[int], 
+            num_classes: Optional[int]
+        ) -> None:
+        """Args:
+            c_in (Optional[int]):
+                The number of input channel, not used here.
+                It's here for the purpose of api consistency.
+            num_classes (Optional[int]):
+                The number of classes, not used here.
+                It's here for the purpose of api consistency.
+        
+        Returns:
+            None.
+        """
+        super(ResLightHead, self).__init__()
+        self.l1 = nn.AdaptiveAvgPool2d((1, 1))
+    
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """Forward propogation.
+
+        Args:
+            X (Tensor):
+                Input tensor. The shape of this tensor
+                should be (H, W, num_classes).
+        
+        Returns:
+            logit (Tensor):
+                The predicted classification logit.
+        """
+        X = self.l1(X)
         return X
     
 
@@ -395,10 +445,13 @@ class ResNet(nn.Module):
             stage_widths: List[int],
             stage_bottleneck_widths: List[Optional[int]],
             trans_block_name: str,
+            head_name: str
         ) -> None:
         """Args:
             stage_depths (List[int]):
                 The depth of each stage.
+            num_classes (int):
+                The number of classes.
             stage_widths (List[int]):
                 The number of output channel of each stage.
             stage_bottleneck_widths (List[int]):
@@ -406,8 +459,6 @@ class ResNet(nn.Module):
             trans_block_name (str):
                 The name of transformation block in ResStage, should be either
                 `res_basic_block` or `res_bottleneck_block`.
-            num_classes (int):
-                The number of classes.
         """
         super(ResNet, self).__init__()
         assert len(stage_depths) == 0 and len(stage_widths), \
@@ -435,7 +486,8 @@ class ResNet(nn.Module):
                 Input tensor.
         
         Returns:
-            None
+            logit (Tensor):
+                The predicted classification logit.
         """
         X = self.l0(X)
         for res_stage in self.l1:
