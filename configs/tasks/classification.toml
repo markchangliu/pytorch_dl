@@ -23,7 +23,7 @@ class_names = []
 ############### Runner Configuration ###############
 
 mode = "train"
-num_epoch = 10
+num_epochs = 10
 
 
 ############### Dataset Configuration ###############
