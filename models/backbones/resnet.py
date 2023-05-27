@@ -2,12 +2,11 @@
 # Some codes are refered from https://github.com/facebookresearch/pycls
 
 
-"""ResNet."""
+"""ResNet backbone module."""
 
 
 import torch
 import torch.nn as nn
-from core.config import cfg
 from typing import Union, Optional, List
 
 
