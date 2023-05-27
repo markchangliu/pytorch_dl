@@ -284,16 +284,17 @@ class ResStem(nn.Module):
     """The stem used in all ResNet series.
     Composition: 7x7, BN, Relu, MaxPool.
     """
-    def __init__(self) -> None:
+    def __init__(self, c_out: int) -> None:
         """
         Args:
-            None
+            c_out (int):
+                The number of output channels.
         Returns:
             None
         """
         super(ResStem, self).__init__()
         self.l1 = nn.Sequential(
-            nn.Conv2d(3, 64, 7, 2, 3),
+            nn.Conv2d(3, c_out, 7, 2, 3),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(3, 2, 1)
@@ -318,6 +319,15 @@ class ResLinearHead(nn.Module):
     Composition: AdaptiveAvgPool, Linear.
     """
     def __init__(self, c_in: int, num_classes: int) -> None:
+        """Args:
+            c_in (int):
+                The number of input channels.
+            num_classes (int):
+                The number of classes.
+        
+        Returns:
+            None.
+        """
         super(ResLinearHead, self).__init__()
         self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
         self.l1_2 = nn.Linear(c_in, num_classes)
@@ -339,9 +349,38 @@ class ResLinearHead(nn.Module):
         return X
     
 
-# class ResConvHead(nn.Module):
+class ResConvHead(nn.Module):
+    """Replace the fc-layer in official ResNet head with a conv1x1 layer.
+    Composition: AdaptiveAvgPool, Conv1x1.
+    """
+    def __init__(self, c_in: int, num_classes: int) -> None:
+        """Args:
+            c_in (int):
+                The number of input channels.
+            num_classes (int):
+                The number of classes.
+        
+        Returns:
+            None.
+        """
+        super(ResConvHead, self).__init__()
+        self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
+        self.l1_2 = nn.Conv2d(c_in, num_classes, 1)
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward propogation.
 
+        Args:
+            X (Tensor):
+                Input tensor.
+        
+        Returns:
+            None
+        """
+        X = self.l1_1(X)
+        X = self.l1_2(X.contiguous().view(X.shape[0], -1))
+        X = self.l1_2(X)
+        return X
     
 
 class ResNet(nn.Module):
@@ -351,16 +390,19 @@ class ResNet(nn.Module):
 
     def __init__(
             self, 
+            num_classes: int,
             stage_depths: List[int],
             stage_widths: List[int],
+            stage_bottleneck_widths: List[Optional[int]],
             trans_block_name: str,
-            num_classes: int
         ) -> None:
         """Args:
             stage_depths (List[int]):
                 The depth of each stage.
             stage_widths (List[int]):
                 The number of output channel of each stage.
+            stage_bottleneck_widths (List[int]):
+                The number of bottleneck channels.
             trans_block_name (str):
                 The name of transformation block in ResStage, should be either
                 `res_basic_block` or `res_bottleneck_block`.
@@ -371,15 +413,15 @@ class ResNet(nn.Module):
         assert len(stage_depths) == 0 and len(stage_widths), \
             "stage_depths and stage_widths should have 4 elements."
         stage_strides = [1, 2, 2, 2]
-        stage_bottleneck_channels = [64, 128, 256, 512]
-        c_last = 64
+        c_init = stage_widths[0]
+        c_last = stage_widths[0]
         res_stages = []
         for s, d, c, c_b in zip(stage_strides, 
-                stage_depths, stage_widths, stage_bottleneck_channels):
+                stage_depths, stage_widths, stage_bottleneck_widths):
             res_stage = ResStage(s, c_last, c, d, trans_block_name, c_b)
             res_stages.append(res_stage)
             c_last = c
-        self.l0 = ResStem()
+        self.l0 = ResStem(c_init)
         self.l1 = nn.ModuleList(res_stages)
         self.l2 = ResLinearHead(c_last, num_classes)
         self.apply(_init_weight)
