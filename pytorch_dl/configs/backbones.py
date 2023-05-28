@@ -6,5 +6,8 @@
 
 class ResNetConfig():
     """ResNet config."""
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            resnet_cfg_path: str
+        ) -> None:
         pass
