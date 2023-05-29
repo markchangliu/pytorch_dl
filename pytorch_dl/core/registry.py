@@ -6,7 +6,7 @@
 
 
 import torch.nn as nn
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 
 class Registry:
@@ -23,6 +23,12 @@ class Registry:
     
     
     def register_module(
-            register_name: str,
-            target_cls: object
-        ) -> Callable[[Any], nn.Module]:
+            self,
+            register_name: Optional[str] = None,
+        ) -> Callable[..., Any]:
+        
+        def inner(target_callable):
+            self.module_dict[register_name] = target_callable
+            return target_callable
+        
+        return inner
