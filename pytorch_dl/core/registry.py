@@ -37,9 +37,9 @@ class Registry:
         def inner(
                 target_callable: Callable[..., Any]
             ) -> Callable[..., Any]:
-            assert register_name in self._module_dict, \
-                "'register_name={0}' had been already \
-                registered.".format(register_name)
+            assert register_name not in self._module_dict, \
+                "'register_name={0}' had been already registered." \
+                .format(register_name)
             self._module_dict[register_name] = target_callable
             return target_callable
         

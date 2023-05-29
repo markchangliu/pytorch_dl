@@ -62,3 +62,11 @@ def build_head(
     head = build_from_cfg(head_registry, cfg)
     head.apply(_init_weight)
     return head
+
+
+def build_net(
+        cfg: Dict[str, Callable[..., Any]]
+    ) -> nn.Module:
+    net = build_from_cfg(net_registry, cfg)
+    net.apply(_init_weight)
+    return net
