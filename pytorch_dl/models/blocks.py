@@ -19,15 +19,15 @@ def _get_trans_block(
     Args:
         trans_block_name (str):
             The name of transformation block, should be one of 
-            `res_basic_block` or `res_bottleneck_block`.
+            `ResBasicBlock` or `ResBottleneckBlock`.
     Returns:
         ResBlockClass (Union["ResBasicBlock", "ResBottleneckBlock"]):
             The transformation block class that will be used in 
             ResNet construction.
     """
     _d = {
-        "res_basic_block": ResBasicBlock,
-        "res_bottleneck_block": ResBottleneckBlock
+        "ResBasicBlock": ResBasicBlock,
+        "ResBottleneckBlock": ResBottleneckBlock
     }
     return _d[trans_block_name]
 

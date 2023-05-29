@@ -5,8 +5,9 @@
 """Registry module."""
 
 
+import copy
 import torch.nn as nn
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Dict
 
 
 class Registry:
@@ -15,20 +16,31 @@ class Registry:
             name: str,
         ) -> None:
         self.name = name
-        self.module_dict = {}
+        self._module_dict = {}
 
     
     def __len__(self) -> int:
         return len(self.module_dict)
     
+
+    def get_module_dict(
+            self
+        ) -> Dict[str, Callable[..., Any]]:
+        return copy.deepcopy(self._module_dict)
+
     
     def register_module(
             self,
             register_name: Optional[str] = None,
         ) -> Callable[..., Any]:
         
-        def inner(target_callable):
-            self.module_dict[register_name] = target_callable
+        def inner(
+                target_callable: Callable[..., Any]
+            ) -> Callable[..., Any]:
+            assert register_name in self._module_dict, \
+                "'register_name={0}' had been already \
+                registered.".format(register_name)
+            self._module_dict[register_name] = target_callable
             return target_callable
         
         return inner
