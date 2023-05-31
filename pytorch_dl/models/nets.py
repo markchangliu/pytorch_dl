@@ -53,7 +53,7 @@ def _get_head(
 
 @net_registry.register_module("ResNet")
 class ResNet(nn.Module):
-    """ResNet.
+    """A ResNet classification net.
     Composition: ResStem + d * ResBlock + ResHead.
     """
 
@@ -204,14 +204,23 @@ class ResNet(nn.Module):
             X = res_stage(X)
         X = self.l2(X)
         return X
-    
+
+
 @net_registry.register_module("ResNet18")
 class ResNet18(ResNet):
-    
+    """A ResNet-18 classification net."""
+
     def __init__(
             self,
             num_classes: int
         ) -> None:
+        """Args:
+            num_classes (int):
+                The number of classes.
+        
+        Returns:
+            None.
+        """
         param_dict = {
             "num_classes": num_classes,
             "stage_strides": [1, 2, 2, 2],

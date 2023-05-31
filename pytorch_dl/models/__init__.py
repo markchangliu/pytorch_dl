@@ -2,7 +2,10 @@
 # Some codes are refered from https://github.com/open-mmlab/mmdetection/tree/2.x
 
 
-"""Init models package."""
+"""Model init code.
+
+All registered class and functions should be imported here.
+"""
 
 
 from pytorch_dl.models.stems import ResStem
