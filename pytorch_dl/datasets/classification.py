@@ -14,13 +14,13 @@ from torch.utils.data import Dataset
 from typing import Tuple, List, Callable, Optional, Dict
 
 
-class ImgFolder(Dataset):
+class ImgFolderDataset(Dataset):
     def __init__(
             self, 
             img_dir: str,
             transforms: Optional[List[Callable[..., Image]]] = None
         ) -> None:
-        super(ImgFolder, self).__init__()
+        super(ImgFolderDataset, self).__init__()
         self._dataset = []
         self._cls_name_idx_dict = {}
         self._cls_idx_name_dict = {}
