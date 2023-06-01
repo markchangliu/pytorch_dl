@@ -18,38 +18,42 @@ class ImgFolderDataset(Dataset):
     def __init__(
             self, 
             img_dir: str,
+            categories: List[str],
             transforms: Optional[List[Callable[..., Image]]] = None
         ) -> None:
         super(ImgFolderDataset, self).__init__()
         self._dataset = []
-        self._cls_name_idx_dict = {}
-        self._cls_idx_name_dict = {}
         self.transforms = transforms
-        self._construct_ds(img_dir)
+        self._construct_ds(img_dir, categories)
     
 
     def _construct_ds(
             self, 
-            img_dir: str
+            img_dir: str,
+            categories: List[str]
         ) -> None:
-        cls_idx = 0
-        for dir_name in sorted(os.listdir(img_dir)):
-            cls_name = dir_name
-            cls_folder_path = os.path.join(img_dir, dir_name)
-            if os.path.isdir(cls_folder_path):
-                self._cls_idx_name_dict[cls_idx] = cls_name
-                self._cls_name_idx_dict[cls_name] = cls_idx
-                img_paths = gen_img_paths(cls_folder_path)
-                for img_path in img_paths:
-                    self._dataset.append((img_path, cls_idx))
-                cls_idx += 1
-            else:
-                self._cls_idx_name_dict[-1] = "NA"
-                self._cls_name_idx_dict["NA"] = -1
-                img_path = os.path.join(img_dir, dir_name)
-                self._dataset.append((img_path, -1))
+        categories.sort()
+        sub_dirs = os.listdir(img_dir)
+        sub_dirs.sort()
+        io_class_names = []
+        for sub_dir in sub_dirs:
+            sub_dir_path = os.path.join(img_dir, sub_dir)
+            if os.path.isdir(sub_dir_path):
+                io_class_names.append(sub_dir)
+        io_class_names.sort()
+        assert set(categories) == set(io_class_names), ("The categories provided"
+            "at config is not equivalent to the folder names under the img_dir '{0}'"
+            .format(img_dir))
+        self._cls_name_idx_dict = {cat: i for i, cat in enumerate(categories)}
+        self._cls_idx_name_dict = {i: cat for i, cat in enumerate(categories)}
 
-    
+        for i, class_name in enumerate(categories):
+            class_folder_path = os.path.join(img_dir, class_name)
+            img_paths = gen_img_paths(class_folder_path)
+            for img_path in img_paths:
+                self._dataset.append((img_path, i))
+
+
     def __len__(self) -> int:
         return len(self._dataset)
 
@@ -72,3 +76,42 @@ class ImgFolderDataset(Dataset):
 
     def get_cls_idx_name_dict(self) -> Dict[int, str]:
         return copy.deepcopy(self._cls_idx_name_dict)
+
+
+class TrainTestImgFolderDataset(ImgFolderDataset):
+    def __init__(
+            self,
+            img_dir: str,
+            categories: List[str],
+            transforms: Optional[List[Callable[..., Image]]] = None
+        ) -> None:
+        super(TrainTestImgFolderDataset, self).__init__(
+            img_dir,
+            categories,
+            transforms
+        )
+
+
+class InferenceImgFolderDataset(ImgFolderDataset):
+    def __init__(
+            self, 
+            img_dir: str, 
+            categories: List[str],
+            transforms: Optional[List[Callable[..., Image]]] = None
+        ) -> None:
+        super(InferenceImgFolderDataset, self).__init__(
+            img_dir, categories, transforms
+        )
+
+
+    def _construct_ds(
+            self, 
+            img_dir: str, 
+            categories: List[str]
+        ) -> None:
+        categories.sort()
+        self._cls_name_idx_dict = {cat: i for i, cat in enumerate(categories)}
+        self._cls_idx_name_dict = {i: cat for i, cat in enumerate(categories)}
+        img_paths = gen_img_paths(img_dir)
+        for img_path in img_paths:
+            self._dataset.append((img_path, -1)) 
