@@ -8,14 +8,7 @@ All registered class and functions should be imported here.
 """
 
 
-from pytorch_dl.models.stems import ResStem
-from pytorch_dl.models.stages import ResStage
-from pytorch_dl.models.heads import (
-    ResLinearHead,
-    ResConvHead,
-    ResLightHead
-)
-from pytorch_dl.models.nets import (
+from pytorch_dl.models.classification_nets.resnet import (
     ResNet,
     ResNet18
 )

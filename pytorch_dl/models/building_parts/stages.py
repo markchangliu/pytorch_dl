@@ -8,7 +8,7 @@
 import torch
 import torch.nn as nn
 from typing import Optional
-from pytorch_dl.models.blocks import ResResidualBlock
+from pytorch_dl.models.building_parts.blocks import ResResidualBlock
 from pytorch_dl.models.builder import stage_registry
 
 
@@ -59,8 +59,7 @@ class ResStage(nn.Module):
             else:
                 res_block = ResResidualBlock(1, c_out, c_out, c_b,
                     trans_block_name)
-            res_blocks.append(res_block)
-        self.res_blocks = nn.ModuleList(res_blocks)
+            self.add_module(f"block_{i}", res_block)
                 
                 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -74,6 +73,6 @@ class ResStage(nn.Module):
             output (Tensor):
                 Output feature maps.
         """
-        for res_block in self.res_blocks:
+        for res_block in self.children():
             X = res_block(X)
         return X

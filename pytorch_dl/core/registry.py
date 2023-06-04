@@ -68,6 +68,10 @@ class Registry:
                 The copy of `self.module_dict`.
         """
         return copy.deepcopy(self._module_dict)
+    
+
+    def get_module(self, module_name: str) -> nn.Module:
+        return self._module_dict[module_name]
 
     
     def register_module(

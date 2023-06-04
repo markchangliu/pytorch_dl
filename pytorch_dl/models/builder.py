@@ -14,8 +14,9 @@ from typing import Dict, Any, Callable, Union
 
 stem_registry = Registry("stem")
 stage_registry = Registry("stage")
+body_registry = Registry("body")
 head_registry = Registry("head")
-net_registry = Registry("net")
+classifier_registry = Registry("classifier")
 
 
 def _init_weight(m: nn.Module) -> None:
@@ -36,7 +37,7 @@ def _init_weight(m: nn.Module) -> None:
         nn.init.constant_(m.bias, 0)
 
 
-def build_from_cfg(
+def _build_from_cfg(
         registry: Registry,
         cfg_dict: Dict[str, Callable[..., Any]]
     ) -> Union[Callable[..., Any], Any]:
@@ -57,9 +58,8 @@ def build_from_cfg(
         returned types output from a function.
     """
     cfg_dict = copy.deepcopy(cfg_dict)
-    module_dict = registry.get_module_dict()
     cls_name = cfg_dict.pop("name")
-    cls_obj = module_dict[cls_name]
+    cls_obj = registry.get_module(cls_name)
     return cls_obj(**cfg_dict)
 
 
@@ -76,8 +76,7 @@ def build_stem(
         stem (nn.Module):
             A stem object.
     """
-    stem = build_from_cfg(stem_registry, cfg)
-    stem.apply(_init_weight)
+    stem = _build_from_cfg(stem_registry, cfg)
     return stem
 
 
@@ -94,9 +93,15 @@ def build_stage(
         stage (nn.Module):
             A stage object.
     """
-    stage = build_from_cfg(stage_registry, cfg)
-    stage.apply(_init_weight)
+    stage = _build_from_cfg(stage_registry, cfg)
     return stage
+
+
+def build_body(
+        cfg: Dict[str, Callable[..., Any]]
+    ) -> nn.Module:
+    body = _build_from_cfg(body_registry, cfg)
+    return body
 
 
 def build_head(
@@ -112,8 +117,7 @@ def build_head(
         Head (nn.Module):
             A head object.
     """
-    head = build_from_cfg(head_registry, cfg)
-    head.apply(_init_weight)
+    head = _build_from_cfg(head_registry, cfg)
     return head
 
 
@@ -130,6 +134,6 @@ def build_net(
         Net (nn.Module):
             A net object.
     """
-    net = build_from_cfg(net_registry, cfg)
+    net = _build_from_cfg(classifier_registry, cfg)
     net.apply(_init_weight)
     return net
