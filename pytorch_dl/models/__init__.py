@@ -15,7 +15,7 @@ from pytorch_dl.models.building_parts.heads import (
     ResConvHead,
     ResLightHead
 )
-from pytorch_dl.models.classification_nets.resnet import (
+from pytorch_dl.models.classifiers.resnet import (
     ResNetClassifier,
     ResNet18Classifier,
     ResNet50Classifier
