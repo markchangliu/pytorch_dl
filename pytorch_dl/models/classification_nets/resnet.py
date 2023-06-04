@@ -39,3 +39,59 @@ class ResNetClassifier(Module):
         for building_part in self.children():
             X = building_part(X)
         return X
+    
+
+@classifier_registry.register_module("ResNet18Classifier")
+class ResNet18Classifier(ResNetClassifier):
+    def __init__(self, num_classes: int) -> None:
+        stem_cfg = {
+            "name": "ResStem",
+            "c_out": 64
+        }
+        body_cfg = {
+            "name": "ResBody",
+            "stage_strides": [1, 2, 2, 2],
+            "stage_depths": [2, 2, 2, 2],
+            "stage_widths": [64, 128, 256, 512],
+            "stage_bottleneck_widths": None,
+            "trans_block_name": "ResBasicBlock"
+        }
+        head_cfg = {
+            "name": "ResLinearHead",
+            "c_in": 512,
+            "num_classes": num_classes
+        }
+        super(ResNet18Classifier, self).__init__(
+            num_classes,
+            stem_cfg,
+            body_cfg,
+            head_cfg
+        )
+
+
+@classifier_registry.register_module("ResNet50Classifier")
+class ResNet50Classifier(ResNetClassifier):
+    def __init__(self, num_classes: int) -> None:
+        stem_cfg = {
+            "name": "ResStem",
+            "c_out": 64
+        }
+        body_cfg = {
+            "name": "ResBody",
+            "stage_strides": [1, 2, 2, 2],
+            "stage_depths": [3, 4, 6, 3],
+            "stage_widths": [256, 512, 1024, 2048],
+            "stage_bottleneck_widths": [64, 128, 256, 512],
+            "trans_block_name": "ResBottleneckBlock"
+        }
+        head_cfg = {
+            "name": "ResLinearHead",
+            "c_in": 2048,
+            "num_classes": num_classes
+        }
+        super(ResNet50Classifier, self).__init__(
+            num_classes,
+            stem_cfg,
+            body_cfg,
+            head_cfg
+        )

@@ -33,6 +33,7 @@ class ResBody(nn.Module):
             "trans_block_name": trans_block_name,
         }
         self._param_check(param_dict)
+        self._construct_body()
             
     
     def _param_check(self, param_dict: Dict[str, Any]) -> None:
@@ -57,7 +58,7 @@ class ResBody(nn.Module):
                 == len(stage_widths) == len(stage_bottleneck_widths), \
                 ("`stage_depths`, `stage_strides`, `stage_widths`, "
                 "`stage_bottleneck_widths` should be equal in length.")
-            assert None in stage_bottleneck_widths, \
+            assert None not in stage_bottleneck_widths, \
                 ("`stage_bottleneck_widths` should not have `None`.")
         else:
             pass

@@ -121,7 +121,7 @@ def build_head(
     return head
 
 
-def build_net(
+def build_classifier(
         cfg: Dict[str, Callable[..., Any]]
     ) -> nn.Module:
     """Build a net from configuration.
