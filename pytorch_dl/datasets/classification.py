@@ -19,10 +19,25 @@ import numpy as np
 import os
 import PIL.Image as pil_image
 from PIL.Image import Image
-from pytorch_dl.core.io import gen_img_paths, gen_pickle_data
+from torch import Tensor
+from torch.nn import Module
 from torch.utils.data import Dataset
 from typing import Tuple, List, Callable, Optional, Dict
 
+from pytorch_dl.core.io import gen_img_paths, gen_pickle_data
+
+
+############## Toy dataset ##############
+
+# class ToyDataset(Dataset):
+#     def __init__(self, ) -> None:
+#         super(ToyDataset, self).__init__()
+
+#     def __len__(self) -> int:
+#         return 512
+    
+#     def __getitem__(self, index) -> Any:
+#         return 
 
 ############## Image folder dataset ##############
 
@@ -31,8 +46,10 @@ class ImgFolderDataset(Dataset):
             self, 
             img_dir: str,
             class_names: List[str],
+            transforms: Optional[Module]
         ) -> None:
         super(ImgFolderDataset, self).__init__()
+        self.transforms = transforms
         self._dataset = []
         self._construct_ds(img_dir, class_names)
     
@@ -71,9 +88,11 @@ class ImgFolderDataset(Dataset):
     def __getitem__(
             self, 
             index: int
-        ) -> Tuple[Image, int]:
+        ) -> Tuple[Tensor, int]:
         img_path, cls_idx = self._dataset[index]
         img = pil_image.open(img_path).convert("RGB")
+        if self.transforms:
+            img = self.transforms(img)
         return img, cls_idx
     
 
@@ -116,9 +135,11 @@ class PickleDataset(Dataset):
             self,
             data_pickle_paths: List[str],
             class_names: List[str],
-            img_size: Tuple[int, int]
+            img_size: Tuple[int, int],
+            transforms: Optional[Module]
         ) -> None:
         self.img_size = img_size
+        self.transforms = transforms
         self._construct_ds(
             data_pickle_paths,
             class_names,
@@ -136,8 +157,8 @@ class PickleDataset(Dataset):
         data = []
         labels = []
         data_dicts = gen_pickle_data(data_pickle_paths, ["data", "labels"])
-        for data, label in data_dicts:
-            data.append(data)
+        for single_data, label in data_dicts:
+            data.append(single_data)
             labels.extend(label)
         data = np.vstack(data)
         data_img_size = np.prod(data[0].shape)
@@ -176,10 +197,12 @@ class PickleDataset(Dataset):
     def __getitem__(
             self, 
             index
-        ) -> Tuple[Image, int]:
+        ) -> Tuple[Tensor, int]:
         img_arr = self._data[index]
         img = pil_image.fromarray(img_arr, mode="RGB")
         class_idx = self._labels[index]
+        if self.transforms:
+            img = self.transforms(img)
         return img, class_idx
     
 

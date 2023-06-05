@@ -201,6 +201,6 @@ class ResResidualBlock(nn.Module):
         """
         X_ = self.l1_1["trans_block"](X)
         if self.l1_1["shortcut"]:
-            X_ += self.self.l1_1["shortcut"](X)
+            X_ += self.l1_1["shortcut"](X)
         X_ = self.l1_2(X_)
         return X_

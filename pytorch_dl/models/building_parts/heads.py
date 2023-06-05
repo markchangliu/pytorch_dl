@@ -46,7 +46,7 @@ class ResLinearHead(nn.Module):
         """
         X = self.l1_1(X)
         X = self.l1_2(X.contiguous().view(X.shape[0], -1))
-        X = self.l1_2(X)
+        # X = self.l1_2(X)
         return X
     
 

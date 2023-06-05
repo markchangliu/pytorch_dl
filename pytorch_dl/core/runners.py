@@ -56,8 +56,8 @@ class EpochBasedRunner():
             ("`eval_metrics` should be a dict.")
         self.metric_funcs = metric_funcs
         
-        assert isinstance(data_loaders, type) and isinstance(workflows, list), \
-            ("The types of `data_loaders` and `workflows` should be" 
+        assert isinstance(data_loaders, list) and isinstance(workflows, list), \
+            ("The types of `data_loaders` and `workflows` should be " 
              "list.")
         assert len(data_loaders) == len(workflows), \
             ("`data_loaders` and `workflows` should have the same length")
@@ -69,7 +69,7 @@ class EpochBasedRunner():
             self,
             data_loader: DataLoader,
         ) -> float:
-        iter_losses = [],
+        iter_losses = []
         for batch_idx, (X, y) in enumerate(data_loader):
             y_pred = self.model(X)
             iter_loss = self.loss_func(y_pred, y)
