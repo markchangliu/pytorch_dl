@@ -8,15 +8,89 @@
 import torch
 from statistics import mean
 from torch import Tensor
-from torch.nn import Module
+from torch.nn import Module, DataParallel
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-from typing import Dict, Any, List, Callable, Tuple, Union
+from typing import Dict, Any, List, Callable, Tuple, Optional
 
 from pytorch_dl.core.logging import get_logger
 
 
 _logger = get_logger(__name__)
+
+
+class DataParallelRunner():
+    def __init__(
+            self,
+            model: DataParallel,
+            optimizer: Optimizer,
+            loss_func: Callable[..., Tensor],
+            metric_funcs: Dict[str, Callable[..., float]],
+            data_loaders: List[DataLoader],
+            workflows: List[Tuple[str, int]],
+            device_ids: Optional[List[int]] = None,
+            output_device: Optional[int] = None,
+        ) -> None:
+        param_dict = {
+            "model": model,
+            "optimizer": optimizer,
+            "loss_func": loss_func,
+            "metric_funcs": metric_funcs,
+            "data_loaders": data_loaders,
+            "workflows": workflows,
+            "device_ids": device_ids,
+            "output_device": output_device
+        }
+        self._param_check(param_dict)
+
+
+    def _param_check(self, param_dict: Dict[str, Any]) -> None:
+        model = param_dict["model"]
+        optimizer = param_dict["optimizer"]
+        loss_func = param_dict["loss_func"]
+        metric_funcs = param_dict["metric_funcs"]
+        data_loaders = param_dict["data_loaders"]
+        workflows = param_dict["workflows"]
+        device_ids = param_dict["device_ids"]
+        output_device = output_device
+
+        self.optimizer = optimizer
+        self.loss_func = loss_func
+
+        assert isinstance(model, DataParallel), \
+            ("`model` is not a `DataParallel` instance.")
+        self.model = model
+
+        assert isinstance(metric_funcs, dict), \
+            ("`eval_metrics` should be a dict.")
+        self.metric_funcs = metric_funcs
+        
+        assert isinstance(data_loaders, list) and isinstance(workflows, list), \
+            ("The types of `data_loaders` and `workflows` should be " 
+             "list.")
+        assert len(data_loaders) == len(workflows), \
+            ("`data_loaders` and `workflows` should have the same length")
+        self.data_loaders = data_loaders
+        self.workflows = workflows
+
+        if device_ids:
+            assert len(device_ids) <= torch.cuda.device_count(), \
+                ("The number of devices in `device_ids` is greater than the number of "
+                f"available device = {torch.cuda.device_count()}.")
+        else:
+            device_ids = list(torch.cuda.device_count())
+        self.device_ids = device_ids
+
+        if output_device:
+            assert output_device in device_ids, \
+                (f"Invalid `output_device`={output_device}, which is not in the "
+                 f"`device_ids`={device_ids}.")
+        else:
+            output_device = device_ids[0]
+        self.output_device = output_device
+
+
+    def 
 
 
 class EpochBasedRunner():
