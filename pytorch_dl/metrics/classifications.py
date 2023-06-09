@@ -73,7 +73,7 @@ def _get_tp_fp_fn(
             tp_l = (y_pred == l)[y_gt == l].sum().item()
             fp_l = (y_pred == l)[y_gt != l].sum().item()
             fn_l = (y_pred != l)[y_gt == l].sum().item()
-            cls_metric_dict[l] == [tp_l, fp_l, fn_l]
+            cls_metric_dict[l] = [tp_l, fp_l, fn_l]
     
     if mode == "micro":
         tp, fp, fn = 0, 0, 0
@@ -90,7 +90,7 @@ def _get_tp_fp_fn(
 
 class Accuracy(Module):
     def __init__(self) -> None:
-        super(Accuracy, Module).__init__()
+        super(Accuracy, self).__init__()
         
     
     def forward(
@@ -99,8 +99,8 @@ class Accuracy(Module):
             y_gt: Union[List[Tensor], Tensor]
         ) -> float:
         y_pred, y_gt = _check_y(y_pred, y_gt)
-        num_samples = y_pred[0]
-        num_correctness = (y_pred == y_gt).sum()
+        num_samples = y_pred.shape[0]
+        num_correctness = (y_pred == y_gt).sum().item()
         accuracy = num_correctness / num_samples
         return accuracy
 
@@ -142,7 +142,7 @@ class Precision(Module):
 
         if self.mode == "micro" or self.mode == "macro":
             cls_precisions = {}
-            for l, (tp_l, fp_l, fn_l) in cls_metric_dict:
+            for l, (tp_l, fp_l, fn_l) in cls_metric_dict.items():
                  cls_precisions[l] = tp_l / (tp_l+ fp_l)
 
         if self.mode == "binary":
@@ -193,7 +193,7 @@ class Recall(Module):
 
         if self.mode == "micro" or self.mode == "macro":
             cls_recalls = {}
-            for l, (tp_l, fp_l, fn_l) in cls_metric_dict:
+            for l, (tp_l, fp_l, fn_l) in cls_metric_dict.items():
                  cls_recalls[l] = tp_l / (tp_l + fn_l)
 
         if self.mode == "binary":
