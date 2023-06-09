@@ -205,3 +205,59 @@ class Recall(Module):
         elif self.mode == "macro":
             recall = mean(list(cls_recalls.values()))
             return recall, cls_recalls
+        
+
+class CrossEntropyLoss(Module):
+    def __init__(self):
+        super(CrossEntropyLoss, self).__init__()
+
+    
+    def _param_check_forward(
+            self, 
+            param_dict: Dict[str, Any]
+        ) -> Tuple[Tensor, Tensor]:
+        logit_pred = param_dict["logit_pred"]
+        y_gt = param_dict["y_gt"]
+        assert type(logit_pred) is type(y_gt), \
+            ("`logit_pred` and `y_gt` must be in the same type.")
+        
+        if isinstance(logit_pred, list):
+            logit_pred = torch.cat(logit_pred)
+            y_gt = torch.cat(y_gt)
+
+        assert len(logit_pred.shape) == 2, \
+            (f"`logit_pred` should shape of (N, C), but got "
+             f"{logit_pred.shape} instead.")
+        
+        assert len(y_gt.shape) == 1 or (len(y_gt.shape) == 2 and y_gt.shape[1] == 1), \
+            (f"`y_gt` should have a shape of either (N, 1) or "
+             f"(N), but got {y_gt.shape}")
+        
+        assert logit_pred.shape[0] == y_gt.shape[0], \
+            (f"`logit_pred` and `y_gt` should have the same number of samples, "
+             f"but got {logit_pred.shape[0]} and {y_gt.shape[0]}.")
+        
+        y_gt = y_gt.contiguous().view(-1)
+        
+        return logit_pred, y_gt
+
+
+    def forward(
+            self, 
+            logit_pred: Union[List[Tensor], Tensor], 
+            y_gt: Union[List[Tensor], Tensor],
+        ) -> None:
+        logit_pred, y_gt = self._param_check_forward(
+            logit_pred,
+            y_gt
+        )
+        
+        num_samples = y_gt.numel()
+        max_logit, _ = torch.max(logit_pred, dim=1, keepdim=True)
+        logit_pred -= max_logit
+        exp_score_pred = torch.exp(logit_pred)
+        prob_pred = exp_score_pred / torch.sum(exp_score_pred, dim=1, keepdim=True)
+        prob_pred_at_label_idx = prob_pred[torch.arange(num_samples), y_gt]
+        cross_entropy = - torch.sum(prob_pred_at_label_idx)
+        cross_entropy /= num_samples
+        return cross_entropy
