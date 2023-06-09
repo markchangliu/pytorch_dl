@@ -23,9 +23,9 @@ def _check_y(
             y_gt = torch.cat(y_gt)
 
         if len(y_pred.shape) > 1:
-            assert len(y_pred) == 2, \
+            assert len(y_pred.shape) == 2, \
                 (f"`y_pred`'s shape is {y_pred.shape}, which is neither "
-                 "(N, ) nor (N, 1).")
+                 "(N, ) nor (N, C).")
             _, y_pred = torch.max(y_pred, dim=1, keepdim=False)
         
         if len(y_gt.shape) > 1:
@@ -88,6 +88,8 @@ def _get_tp_fp_fn(
         return tp, fp, fn, None
 
 
+############### Evaluation metrics ###############
+
 class Accuracy(Module):
     def __init__(self) -> None:
         super(Accuracy, self).__init__()
@@ -97,12 +99,12 @@ class Accuracy(Module):
             self,
             y_pred: Union[List[Tensor], Tensor],
             y_gt: Union[List[Tensor], Tensor]
-        ) -> float:
+        ) -> Tuple[float, None]:
         y_pred, y_gt = _check_y(y_pred, y_gt)
         num_samples = y_pred.shape[0]
         num_correctness = (y_pred == y_gt).sum().item()
         accuracy = num_correctness / num_samples
-        return accuracy
+        return accuracy, None
 
 
 class Precision(Module):
@@ -139,11 +141,10 @@ class Precision(Module):
             self.labels,
             self.pos_label,
         )
-
         if self.mode == "micro" or self.mode == "macro":
             cls_precisions = {}
             for l, (tp_l, fp_l, fn_l) in cls_metric_dict.items():
-                 cls_precisions[l] = tp_l / (tp_l+ fp_l)
+                 cls_precisions[l] = tp_l / (tp_l + fp_l + 1e-5)
 
         if self.mode == "binary":
             precision = tp / (tp + fp)
@@ -194,7 +195,7 @@ class Recall(Module):
         if self.mode == "micro" or self.mode == "macro":
             cls_recalls = {}
             for l, (tp_l, fp_l, fn_l) in cls_metric_dict.items():
-                 cls_recalls[l] = tp_l / (tp_l + fn_l)
+                 cls_recalls[l] = tp_l / (tp_l + fn_l + 1e-5)
 
         if self.mode == "binary":
             recall = tp / (tp + fn)
@@ -206,6 +207,8 @@ class Recall(Module):
             recall = mean(list(cls_recalls.values()))
             return recall, cls_recalls
         
+
+############### Loss functions ###############
 
 class CrossEntropyLoss(Module):
     def __init__(self):
@@ -246,7 +249,7 @@ class CrossEntropyLoss(Module):
             self, 
             logit_pred: Union[List[Tensor], Tensor], 
             y_gt: Union[List[Tensor], Tensor],
-        ) -> None:
+        ) -> Tensor:
         param_dict = {
             "logit_pred": logit_pred,
             "y_gt": y_gt

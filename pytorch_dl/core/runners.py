@@ -124,13 +124,13 @@ class SingleNodeRunner():
         
         for i in range(num_epochs):
             epoch_loss = 0
-            for batch_idx, (X, y) in enumerate(data_loader):
+            for batch_idx, (X, y_gt) in enumerate(data_loader):
                 if self.is_data_parellel:
-                    y = y.cuda(self.output_device)
+                    y_gt = y_gt.cuda(self.output_device)
                 else:
-                    X, y = X.cuda(self.output_device), y.cuda(self.output_device)
+                    X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
                 y_pred = model(X)
-                iter_loss = self.loss_func(y_pred, y)
+                iter_loss = self.loss_func(y_pred, y_gt)
                 iter_loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -158,16 +158,17 @@ class SingleNodeRunner():
 
         epoch_loss = 0
         epoch_metrics = {k: 0 for k in self.metric_funcs.keys()}
-        for batch_idx, (X, y) in enumerate(data_loader):
+        for batch_idx, (X, y_gt) in enumerate(data_loader):
             if self.is_data_parellel:
-                y = y.cuda(self.output_device)
+                y_gt = y_gt.cuda(self.output_device)
             else:
-                X, y = X.cuda(self.output_device), y.cuda(self.output_device)
+                X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
             y_pred = model(X)
-            iter_loss = self.loss_func(y_pred, y)
+            iter_loss = self.loss_func(y_pred, y_gt)
             epoch_loss += iter_loss.item()
             for metric_name, metric_func in self.metric_funcs.items():
-                epoch_metrics[metric_name] += metric_func(y_pred, y)
+                result, details = metric_func(y_pred, y_gt)
+                epoch_metrics[metric_name] += result
         epoch_loss /= num_batches
         epoch_metrics = {k: v / num_batches for k, v in epoch_metrics.items()}
         _logger.info(
@@ -191,11 +192,9 @@ class SingleNodeRunner():
         
         inference_times = []
         results = []
-        for batch_idx, (X, y) in enumerate(data_loader):
-            if self.is_data_parellel:
-                y = y.cuda(self.output_device)
-            else:
-                X, y = X.cuda(self.output_device), y.cuda(self.output_device)
+        for batch_idx, (X, y_gt) in enumerate(data_loader):
+            if not self.is_data_parellel:
+                X = X.cuda(self.output_device)
             t1 = time.time()
             y_pred = model(X)
             t2 = time.time()
@@ -204,3 +203,14 @@ class SingleNodeRunner():
         avg_inference_time = mean(inference_times)
         return avg_inference_time, results
     
+
+    def run_workflows(self) -> Any:
+        for ((work, num_epoch), data_loader) in zip(self.workflows, self.data_loaders):
+            if work == "train":
+                self.train(data_loader, num_epoch)
+            elif work == "val":
+                self.val_or_test(data_loader, "val")
+            elif work == "test":
+                self.val_or_test(data_loader, "test")
+            elif work == "inference":
+                self.inference(data_loader)
