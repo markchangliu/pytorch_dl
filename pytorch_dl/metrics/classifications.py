@@ -247,10 +247,11 @@ class CrossEntropyLoss(Module):
             logit_pred: Union[List[Tensor], Tensor], 
             y_gt: Union[List[Tensor], Tensor],
         ) -> None:
-        logit_pred, y_gt = self._param_check_forward(
-            logit_pred,
-            y_gt
-        )
+        param_dict = {
+            "logit_pred": logit_pred,
+            "y_gt": y_gt
+        }
+        logit_pred, y_gt = self._param_check_forward(param_dict)
         
         num_samples = y_gt.numel()
         max_logit, _ = torch.max(logit_pred, dim=1, keepdim=True)
@@ -258,6 +259,7 @@ class CrossEntropyLoss(Module):
         exp_score_pred = torch.exp(logit_pred)
         prob_pred = exp_score_pred / torch.sum(exp_score_pred, dim=1, keepdim=True)
         prob_pred_at_label_idx = prob_pred[torch.arange(num_samples), y_gt]
-        cross_entropy = - torch.sum(prob_pred_at_label_idx)
-        cross_entropy /= num_samples
-        return cross_entropy
+        cross_entropy = torch.log(prob_pred_at_label_idx)
+        loss = - torch.sum(cross_entropy, dim=0)
+        loss /= num_samples
+        return loss
