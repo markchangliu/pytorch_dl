@@ -7,13 +7,14 @@
 
 import logging
 import sys
+from typing import Optional
 
 
 # Show filename and line number in logs
 _FORMAT = "[%(filename)s: %(lineno)3d]: %(message)s"
 
 
-def setup_logging() -> None:
+def setup_logging(log_path: Optional[str]) -> None:
     """Setup the root logger by adding a handler and a formatter.
 
     Args: 
@@ -27,9 +28,12 @@ def setup_logging() -> None:
     logging.root.handlers = []
     logging_config = {
         "level": logging.INFO, 
-        "format": _FORMAT,
-        "stream": sys.stdout
+        "format": _FORMAT
     }
+    if log_path:
+        logging_config.update({"filename": log_path})
+    else:
+        logging_config.update({"stream": sys.stdout})
     logging.basicConfig(**logging_config)
 
 
