@@ -124,7 +124,7 @@ class SingleNodeRunner():
         )
         self.val_test_metric_meters = MetricMeter(
             meter_win_size,
-            ["loss"].extend(list(self.metric_funcs.keys()))
+            ["loss"] + list(self.metric_funcs.keys())
         )
 
 
@@ -142,6 +142,7 @@ class SingleNodeRunner():
         model.train()
 
         for i in range(num_epochs):
+            self.train_metric_meters.reset()
             for batch_idx, (X, y_gt) in enumerate(data_loader):
                 if self.is_data_parellel:
                     y_gt = y_gt.cuda(self.output_device)
@@ -198,10 +199,11 @@ class SingleNodeRunner():
                 batch_size = y_gt.shape[0]
             y_pred = model(X)
             iter_loss = self.loss_func(y_pred, y_gt)
-            iter_metrics = {k: f(y_pred, y_gt)[0] for k, f in self.metric_funcs}
+            iter_metrics = {k: f(y_pred, y_gt)[0] for k, f in self.metric_funcs.items()}
+            iter_metrics.update({"loss": iter_loss.item()})
             self.val_test_metric_meters.update_info(
                 batch_size,
-                {"loss": iter_loss.item()}.update(iter_metrics)
+                iter_metrics
             )
             if (batch_idx + 1) % self.iter_log_interval == 0:
                 iter_info_str = self.val_test_metric_meters.log_win_avg()

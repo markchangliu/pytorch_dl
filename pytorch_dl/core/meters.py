@@ -70,7 +70,7 @@ class MetricMeter():
 
         self._records = {}
         for metric_name in metric_names:
-            self._records[metric_name] = deque(window_size)
+            self._records[metric_name] = deque(maxlen=window_size)
         
         self._totals = {}
         for metric_name in metric_names:
@@ -83,8 +83,7 @@ class MetricMeter():
         for metric_deque in self._records.values():
             metric_deque.clear()
 
-        for metric_total in self._totals.values():
-            metric_total = 0.0
+        self._totals = {k: 0.0 for k in self._totals.keys()}
     
 
     def update_info(
