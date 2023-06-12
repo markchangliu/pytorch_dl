@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from typing import Dict, Any, List, Callable, Tuple, Optional, Union
 
 from pytorch_dl.core.logging import get_logger
+from pytorch_dl.core.meters import Timer, MetricMeter
 
 
 _logger = get_logger(__name__)
@@ -32,7 +33,10 @@ class SingleNodeRunner():
             is_data_parallel: Optional[bool] = False,
             device_ids: Optional[List[int]] = None,
             output_device: Optional[int] = None,
-            train_log_interval: Optional[int] = 1
+            iter_log_interval: int = 1,
+            train_epoch_log_interval: int = 1,
+            iter_meter_win_size: int = 20,
+            epoch_meter_win_size: int = 10
         ) -> None:
         param_dict = {
             "model": model,
@@ -44,7 +48,10 @@ class SingleNodeRunner():
             "is_data_parallel": is_data_parallel,
             "device_ids": device_ids,
             "output_device": output_device,
-            "train_log_interval": train_log_interval
+            "iter_log_interval": iter_log_interval,
+            "train_epoch_log_interval": train_epoch_log_interval,
+            "iter_meter_win_size": iter_meter_win_size,
+            "epoch_meter_win_size": epoch_meter_win_size
         }
         
         self._param_check(param_dict)
@@ -60,7 +67,10 @@ class SingleNodeRunner():
         is_data_parellel = param_dict["is_data_parallel"]
         device_ids = param_dict["device_ids"]
         output_device = param_dict["output_device"]
-        train_log_interval = param_dict["train_log_interval"]
+        iter_log_interval = param_dict["iter_log_interval"]
+        train_epoch_log_interval = param_dict["train_epoch_log_interval"]
+        iter_meter_win_size = param_dict["iter_meter_win_size"]
+        epoch_meter_win_size = param_dict["epoch_meter_win_size"]
 
         assert torch.cuda.is_available(), \
             ("No cuda device is available")
@@ -68,10 +78,12 @@ class SingleNodeRunner():
         self.model = model
         self.optimizer = optimizer
         self.loss_func = loss_func
-        self.train_log_interval = train_log_interval
+        self.iter_log_interval = iter_log_interval
+        self.train_epoch_log_interval = train_epoch_log_interval
 
         assert isinstance(metric_funcs, dict), \
-            ("`metric_funcs` should be a dict.")
+            ("`metric_funcs` should have a format of "
+             "`Dict[str, Callable[..., float]]`.")
         self.metric_funcs = metric_funcs
 
         assert isinstance(data_loaders, list) and isinstance(workflows, list), \
@@ -108,6 +120,12 @@ class SingleNodeRunner():
             self.device_ids = None
             self.output_device = 0
 
+        self.timer = Timer()
+        self.iter_metric_meters = MetricMeter(
+            iter_meter_win_size,
+            self.metric_funcs.keys()
+        )
+
 
     def train(
             self,
@@ -123,23 +141,30 @@ class SingleNodeRunner():
         model.train()
         
         for i in range(num_epochs):
-            epoch_loss = 0
+            self.iter_metric_meters.reset()
             for batch_idx, (X, y_gt) in enumerate(data_loader):
                 if self.is_data_parellel:
                     y_gt = y_gt.cuda(self.output_device)
+                    batch_size = y_gt.shape[0] * len(self.device_ids)
                 else:
                     X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
+                    batch_size = y_gt.shape[0]
                 y_pred = model(X)
                 iter_loss = self.loss_func(y_pred, y_gt)
                 iter_loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-                epoch_loss += iter_loss.item()
-            epoch_loss /= num_batches
-            if (i + 1) % self.train_log_interval == 0:
-                _logger.info(
-                    f"Train epoch {i + 1}/{num_epochs}, loss {epoch_loss:.4f}."
+                self.iter_metric_meters.update_info(
+                    {"loss": iter_loss.item()}
                 )
+                if (batch_idx + 1) % self.iter_log_interval == 0:
+                    iter_info = self.iter_metric_meters.log_global_info
+                    _logger.info(
+                        f"Train epoch {i + 1}/{num_epochs}, "
+                        f"iter {batch_idx + 1}/{num_batches}, "
+                        f"{iter_info}."
+                    )
+            
     
 
     @torch.no_grad()

@@ -15,6 +15,9 @@ from pytorch_dl.core.logging import get_logger
 _logger = get_logger(__name__)
 
 
+def cvt_dict_to_str()
+
+
 class Timer():
     def __init__(
             self
@@ -58,7 +61,7 @@ class MetricMeter():
             window_size: int,
             metric_names: List[str]
         ) -> None:
-        self._num_calls = 0
+        self._num_samples = 0
 
         self._records = {}
         for metric_name in metric_names:
@@ -70,7 +73,7 @@ class MetricMeter():
 
 
     def reset(self) -> None:
-        self._num_calls = 0
+        self._num_samples = 0
 
         for metric_deque in self._records.values():
             metric_deque.clear()
@@ -81,27 +84,43 @@ class MetricMeter():
 
     def update_info(
             self, 
+            num_samples: int,
             metric_dict: Dict[str, float]
         ) -> None:
-        self._num_calls += 1
+        self._num_samples += num_samples
 
         for metric_name, metric_val in metric_dict.items():
             self._records[metric_name].append(metric_val)
-            self._totals[metric_name] += metric_val
+            self._totals[metric_name] += metric_val * num_samples
+
+
+    def get_global_avg(self) -> None:
+        info = {}
+        for metric_name, metric_total in self._totals.items():
+            info[metric_name] = metric_total / self._num_samples
+        return info
+    
+
+    def get_win_avg(self) -> None:
+        info = {}
+        for metric_name, metric_record in self._records.items():
+            info[metric_name] = mean(metric_record)
+        return info
 
     
-    def log_global_info(self) -> None:
+    def log_global_avg(self) -> None:
         info = ""
-        for metric_name, metric_val in self._totals.items():
-            info += f"{metric_name} global avg {metric_val:.4f}, "
+        for metric_name, metric_total in self._totals.items():
+            metric_avg = metric_total / self._num_calls
+            info += f"{metric_name} global avg {metric_avg:.4f}, "
         info = info.strip()[:-1]
         return info
 
 
-    def log_win_info(self) -> None:
+    def log_win_avg(self) -> None:
         info = ""
         for metric_name, record in self._records.items():
             win_avg = mean(record)
-            info += f"{metric_name} win avg {record:.4f}, "
+            info += f"{metric_name} win avg {win_avg:.4f}, "
         info = info.strip()[:-1]
         return info
