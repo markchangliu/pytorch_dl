@@ -3,6 +3,13 @@ __pycache__/
 *.pyc
 **/logs/
 .idea/
-**/data/
+*.json
+*.png
+*.jpg
+*.jpeg
+*.toml
+*.yaml
+*.txt
+*.log
 *.pth
 **/tmp*
