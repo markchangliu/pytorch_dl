@@ -35,8 +35,7 @@ class SingleNodeRunner():
             output_device: Optional[int] = None,
             iter_log_interval: int = 1,
             train_epoch_log_interval: int = 1,
-            iter_meter_win_size: int = 20,
-            epoch_meter_win_size: int = 10
+            meter_win_size: int = 20,
         ) -> None:
         param_dict = {
             "model": model,
@@ -50,8 +49,7 @@ class SingleNodeRunner():
             "output_device": output_device,
             "iter_log_interval": iter_log_interval,
             "train_epoch_log_interval": train_epoch_log_interval,
-            "iter_meter_win_size": iter_meter_win_size,
-            "epoch_meter_win_size": epoch_meter_win_size
+            "meter_win_size": meter_win_size,
         }
         
         self._param_check(param_dict)
@@ -69,11 +67,10 @@ class SingleNodeRunner():
         output_device = param_dict["output_device"]
         iter_log_interval = param_dict["iter_log_interval"]
         train_epoch_log_interval = param_dict["train_epoch_log_interval"]
-        iter_meter_win_size = param_dict["iter_meter_win_size"]
-        epoch_meter_win_size = param_dict["epoch_meter_win_size"]
+        meter_win_size = param_dict["meter_win_size"]
 
         assert torch.cuda.is_available(), \
-            ("No cuda device is available")
+            ("No cuda device is available.")
         
         self.model = model
         self.optimizer = optimizer
@@ -121,9 +118,13 @@ class SingleNodeRunner():
             self.output_device = 0
 
         self.timer = Timer()
-        self.iter_metric_meters = MetricMeter(
-            iter_meter_win_size,
-            self.metric_funcs.keys()
+        self.train_metric_meters = MetricMeter(
+            meter_win_size,
+            ["loss"]
+        )
+        self.val_test_metric_meters = MetricMeter(
+            meter_win_size,
+            ["loss"].extend(list(self.metric_funcs.keys()))
         )
 
 
@@ -139,9 +140,8 @@ class SingleNodeRunner():
         else:
             model = self.model.cuda(self.output_device)
         model.train()
-        
+
         for i in range(num_epochs):
-            self.iter_metric_meters.reset()
             for batch_idx, (X, y_gt) in enumerate(data_loader):
                 if self.is_data_parellel:
                     y_gt = y_gt.cuda(self.output_device)
@@ -154,25 +154,31 @@ class SingleNodeRunner():
                 iter_loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-                self.iter_metric_meters.update_info(
+                self.train_metric_meters.update_info(
+                    batch_size,
                     {"loss": iter_loss.item()}
                 )
                 if (batch_idx + 1) % self.iter_log_interval == 0:
-                    iter_info = self.iter_metric_meters.log_global_info
+                    iter_info_str = self.train_metric_meters.log_win_avg()
                     _logger.info(
                         f"Train epoch {i + 1}/{num_epochs}, "
                         f"iter {batch_idx + 1}/{num_batches}, "
-                        f"{iter_info}."
+                        f"{iter_info_str}."
                     )
+            if (i + 1) % self.train_epoch_log_interval == 0:
+                epoch_info_str = self.train_metric_meters.log_global_avg()
+                _logger.info(
+                    f"Train epoch {i + 1}/{num_epochs}, "
+                    f"{epoch_info_str}"
+                )
             
-    
 
     @torch.no_grad()
     def val_or_test(
             self,
             data_loader: DataLoader,
             mode: str = "val"
-        ) -> Tuple[float, Dict[str, float]]:
+        ) -> None:
         num_batches = len(data_loader)
 
         if self.is_data_parellel:
@@ -181,28 +187,32 @@ class SingleNodeRunner():
             model = self.model.cuda(self.output_device)
         model.eval()
 
-        epoch_loss = 0
-        epoch_metrics = {k: 0 for k in self.metric_funcs.keys()}
+        self.val_test_metric_meters.reset()
+
         for batch_idx, (X, y_gt) in enumerate(data_loader):
             if self.is_data_parellel:
                 y_gt = y_gt.cuda(self.output_device)
+                batch_size = y_gt.shape[0] * len(self.device_ids)
             else:
                 X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
+                batch_size = y_gt.shape[0]
             y_pred = model(X)
             iter_loss = self.loss_func(y_pred, y_gt)
-            epoch_loss += iter_loss.item()
-            for metric_name, metric_func in self.metric_funcs.items():
-                result, details = metric_func(y_pred, y_gt)
-                epoch_metrics[metric_name] += result
-        epoch_loss /= num_batches
-        epoch_metrics = {k: v / num_batches for k, v in epoch_metrics.items()}
+            iter_metrics = {k: f(y_pred, y_gt)[0] for k, f in self.metric_funcs}
+            self.val_test_metric_meters.update_info(
+                batch_size,
+                {"loss": iter_loss.item()}.update(iter_metrics)
+            )
+            if (batch_idx + 1) % self.iter_log_interval == 0:
+                iter_info_str = self.val_test_metric_meters.log_win_avg()
+                _logger.info(
+                    f"{mode.capitalize()} epoch, iter {batch_idx}/{num_batches}, "
+                    f"{iter_info_str}."
+                )
+        epoch_info_str = self.val_test_metric_meters.log_global_avg()
         _logger.info(
-            f"{mode.capitalize()} epoch, loss {epoch_loss:.4f}."
+            f"{mode.capitalize()} epoch, {epoch_info_str}."
         )
-        for metric_name, metric_value in epoch_metrics.items():
-            _logger.info(f"{metric_name} {metric_value:.4f}.")
-
-        return epoch_loss, epoch_metrics
     
 
     @torch.no_grad()

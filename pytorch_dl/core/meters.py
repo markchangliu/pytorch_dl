@@ -15,7 +15,12 @@ from pytorch_dl.core.logging import get_logger
 _logger = get_logger(__name__)
 
 
-def cvt_dict_to_str()
+def _cvt_dict_to_str(d: Dict[str, float]) -> str:
+    info = ""
+    for k, v in d.items():
+        info += f"{k} {v:.4f}, "
+    info = info.strip()[:-1]
+    return info
 
 
 class Timer():
@@ -94,33 +99,27 @@ class MetricMeter():
             self._totals[metric_name] += metric_val * num_samples
 
 
-    def get_global_avg(self) -> None:
+    def get_global_avg(self) -> Dict[str, float]:
         info = {}
         for metric_name, metric_total in self._totals.items():
             info[metric_name] = metric_total / self._num_samples
         return info
     
 
-    def get_win_avg(self) -> None:
+    def get_win_avg(self) -> Dict[str, float]:
         info = {}
         for metric_name, metric_record in self._records.items():
             info[metric_name] = mean(metric_record)
         return info
 
     
-    def log_global_avg(self) -> None:
-        info = ""
-        for metric_name, metric_total in self._totals.items():
-            metric_avg = metric_total / self._num_calls
-            info += f"{metric_name} global avg {metric_avg:.4f}, "
-        info = info.strip()[:-1]
-        return info
+    def log_global_avg(self) -> str:
+        info = self.get_global_avg()
+        info_str = _cvt_dict_to_str(info)
+        return info_str
 
 
-    def log_win_avg(self) -> None:
-        info = ""
-        for metric_name, record in self._records.items():
-            win_avg = mean(record)
-            info += f"{metric_name} win avg {win_avg:.4f}, "
-        info = info.strip()[:-1]
-        return info
+    def log_win_avg(self) -> str:
+        info = self.get_win_avg()
+        info_str = _cvt_dict_to_str(info)
+        return info_str
