@@ -6,6 +6,7 @@
 
 
 import logging
+import os
 import sys
 from typing import Optional
 
@@ -25,6 +26,8 @@ def setup_logging(log_path: Optional[str]) -> None:
     """
     # Clear the root logger to prevent any existing logging config
     # (e.g. set by another module) from messing with our setup
+    if log_path and os.path.exists(log_path):
+        os.remove(log_path)
     logging.root.handlers = []
     logging_config = {
         "level": logging.INFO, 

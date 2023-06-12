@@ -135,11 +135,7 @@ class SingleNodeRunner():
         ) -> None:
         num_batches = len(data_loader)
 
-        if self.is_data_parellel:
-            model = self.model
-        else:
-            model = self.model.cuda(self.output_device)
-        model.train()
+        self.model.train()
 
         for i in range(num_epochs):
             self.train_metric_meters.reset()
@@ -150,7 +146,7 @@ class SingleNodeRunner():
                 else:
                     X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
                     batch_size = y_gt.shape[0]
-                y_pred = model(X)
+                y_pred = self.model(X)
                 iter_loss = self.loss_func(y_pred, y_gt)
                 iter_loss.backward()
                 self.optimizer.step()
@@ -182,11 +178,7 @@ class SingleNodeRunner():
         ) -> None:
         num_batches = len(data_loader)
 
-        if self.is_data_parellel:
-            model = self.model
-        else:
-            model = self.model.cuda(self.output_device)
-        model.eval()
+        self.model.eval()
 
         self.val_test_metric_meters.reset()
 
@@ -197,7 +189,7 @@ class SingleNodeRunner():
             else:
                 X, y_gt = X.cuda(self.output_device), y_gt.cuda(self.output_device)
                 batch_size = y_gt.shape[0]
-            y_pred = model(X)
+            y_pred = self.model(X)
             iter_loss = self.loss_func(y_pred, y_gt)
             iter_metrics = {k: f(y_pred, y_gt)[0] for k, f in self.metric_funcs.items()}
             iter_metrics.update({"loss": iter_loss.item()})
@@ -222,18 +214,16 @@ class SingleNodeRunner():
             self,
             data_loader: DataLoader
         ) -> Tuple[float, List[Any]]:
-        if self.is_data_parellel:
-            model = self.model
-        else:
-            model = self.model.cuda(self.output_device)
-        
         inference_times = []
         results = []
+        
+        self.model.eval()
+        
         for batch_idx, (X, y_gt) in enumerate(data_loader):
             if not self.is_data_parellel:
                 X = X.cuda(self.output_device)
             t1 = time.time()
-            y_pred = model(X)
+            y_pred = self.model(X)
             t2 = time.time()
             inference_times.append(t2 - t1)
             results.append(y_pred)
@@ -242,7 +232,13 @@ class SingleNodeRunner():
     
 
     def run_workflows(self) -> Any:
-        for ((work, num_epoch), data_loader) in zip(self.workflows, self.data_loaders):
+        if not self.is_data_parellel:
+            self.model = self.model.cuda(self.output_device)
+
+        for ((work, num_epoch), data_loader) in zip(
+            self.workflows, 
+            self.data_loaders
+            ):
             if work == "train":
                 self.train(data_loader, num_epoch)
             elif work == "val":
