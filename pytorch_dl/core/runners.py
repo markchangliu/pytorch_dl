@@ -32,7 +32,7 @@ class SingleNodeRunner():
             is_data_parallel: Optional[bool] = False,
             device_ids: Optional[List[int]] = None,
             output_device: Optional[int] = None,
-            train_log_period: Optional[int] = 1
+            train_log_interval: Optional[int] = 1
         ) -> None:
         param_dict = {
             "model": model,
@@ -44,7 +44,7 @@ class SingleNodeRunner():
             "is_data_parallel": is_data_parallel,
             "device_ids": device_ids,
             "output_device": output_device,
-            "train_log_period": train_log_period
+            "train_log_interval": train_log_interval
         }
         
         self._param_check(param_dict)
@@ -60,7 +60,7 @@ class SingleNodeRunner():
         is_data_parellel = param_dict["is_data_parallel"]
         device_ids = param_dict["device_ids"]
         output_device = param_dict["output_device"]
-        train_log_period = param_dict["train_log_period"]
+        train_log_interval = param_dict["train_log_interval"]
 
         assert torch.cuda.is_available(), \
             ("No cuda device is available")
@@ -68,7 +68,7 @@ class SingleNodeRunner():
         self.model = model
         self.optimizer = optimizer
         self.loss_func = loss_func
-        self.train_log_period = train_log_period
+        self.train_log_interval = train_log_interval
 
         assert isinstance(metric_funcs, dict), \
             ("`metric_funcs` should be a dict.")
@@ -136,7 +136,7 @@ class SingleNodeRunner():
                 self.optimizer.zero_grad()
                 epoch_loss += iter_loss.item()
             epoch_loss /= num_batches
-            if (i + 1) % self.train_log_period == 0:
+            if (i + 1) % self.train_log_interval == 0:
                 _logger.info(
                     f"Train epoch {i + 1}/{num_epochs}, loss {epoch_loss:.4f}."
                 )
