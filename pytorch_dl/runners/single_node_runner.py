@@ -27,7 +27,7 @@ class _SingleNodeRunner():
             self,
             work_dir: Optional[str] = None,
             device_ids: Optional[List[int]] = None,
-            output_device: int = 0,
+            output_device: Optional[int] = None,
         ) -> None:
         assert torch.cuda.is_available(), "No cuda device is available."
         
@@ -49,7 +49,7 @@ class _SingleNodeRunner():
             assert output_device in self.device_ids, \
                 f"`output_device` is not in available device ids {self.device_ids}."
         else:
-            output_device = 0
+            output_device = self.device_ids[0]
         self.output_device = output_device
 
 
@@ -99,7 +99,7 @@ class _SingleNodeRunner():
             optimizer.step()
             optimizer.zero_grad()
             iter_metrics = {
-                k: f(y_pred, y_gt) for k, f in metric_funcs.items()
+                k: f(y_pred, y_gt)[0] for k, f in metric_funcs.items()
             }
             iter_metrics.update({"loss": iter_loss.item()})
             metric_meter.update_info(num_samples, iter_metrics)
@@ -140,7 +140,7 @@ class _SingleNodeRunner():
             y_pred = model(X)
             iter_loss = loss_func(y_pred, y_gt)
             iter_metrics = {
-                k: f(y_pred, y_gt) for k, f in metric_funcs.items()
+                k: f(y_pred, y_gt)[0] for k, f in metric_funcs.items()
             }
             iter_metrics.update({"loss": iter_loss.item()})
             metric_meter.update_info(num_samples, iter_metrics)
@@ -213,7 +213,6 @@ class _SingleNodeRunner():
             if (epoch_idx + 1) % val_interval == 0:
                 self._test_one_epoch(
                     model,
-                    optimizer,
                     val_data_loader,
                     loss_func,
                     metric_funcs,
@@ -241,7 +240,6 @@ class _SingleNodeRunner():
 
         self._test_one_epoch(
             model,
-            optimizer,
             val_data_loader,
             loss_func,
             metric_funcs,
@@ -299,7 +297,7 @@ class SingleGpuRunner(_SingleNodeRunner):
     def __init__(
             self,
             work_dir: Optional[str] = None,
-            output_device: Optional[int] = 0,
+            output_device: Optional[int] = None,
         ) -> None:
         _logger.info("SingleGpuRunner initialization starts...")
         super(SingleGpuRunner, self).__init__(
@@ -368,7 +366,7 @@ class DataParallelRunner(_SingleNodeRunner):
             self, 
             work_dir: Optional[str] = None, 
             device_ids: Optional[List[int]] = None, 
-            output_device: int = 0
+            output_device: Optional[int] = None
         ) -> None:
         _logger.info("DataParallelRunner initialization starts...")
         super(DataParallelRunner, self).__init__(
@@ -394,7 +392,7 @@ class DataParallelRunner(_SingleNodeRunner):
             val_interval: int = 1, 
             checkpoint_interval: int = 5
         ) -> None:
-        return super(SingleGpuRunner, self).train(
+        return super(DataParallelRunner, self).train(
             num_epoches, 
             model, 
             optimizer, 
@@ -421,7 +419,7 @@ class DataParallelRunner(_SingleNodeRunner):
             meter_win_size: int = 20, 
             iter_log_interval: int = 1
         ) -> None:
-        return super(SingleGpuRunner, self).test(
+        return super(DataParallelRunner, self).test(
             model, 
             data_loader, 
             loss_func, 
