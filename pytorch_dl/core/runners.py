@@ -5,6 +5,7 @@
 """Runner module."""
 
 
+import os
 import time
 import torch
 from statistics import mean
@@ -36,6 +37,9 @@ class SingleNodeRunner():
             iter_log_interval: int = 1,
             train_epoch_log_interval: int = 1,
             meter_win_size: int = 20,
+            validate_interval: int = 1,
+            checkpoint_interval: int = 5,
+            work_dir: str = os.getcwd()
         ) -> None:
         param_dict = {
             "model": model,
@@ -50,6 +54,9 @@ class SingleNodeRunner():
             "iter_log_interval": iter_log_interval,
             "train_epoch_log_interval": train_epoch_log_interval,
             "meter_win_size": meter_win_size,
+            "validate_interval": validate_interval,
+            "checkpoint_interval": checkpoint_interval,
+            "work_dir": work_dir
         }
         
         self._param_check(param_dict)
@@ -68,15 +75,19 @@ class SingleNodeRunner():
         iter_log_interval = param_dict["iter_log_interval"]
         train_epoch_log_interval = param_dict["train_epoch_log_interval"]
         meter_win_size = param_dict["meter_win_size"]
+        validate_interval = param_dict["validate_interval"]
+        checkpoint_interval = param_dict["checkpoint_interval"]
+        work_dir = param_dict["work_dir"]
 
         assert torch.cuda.is_available(), \
             ("No cuda device is available.")
         
-        self.model = model
         self.optimizer = optimizer
         self.loss_func = loss_func
         self.iter_log_interval = iter_log_interval
         self.train_epoch_log_interval = train_epoch_log_interval
+        self.validate_interval = validate_interval
+        self.checkpoint_interval = checkpoint_interval
 
         assert isinstance(metric_funcs, dict), \
             ("`metric_funcs` should have a format of "
@@ -113,9 +124,11 @@ class SingleNodeRunner():
 
             assert isinstance(model, DataParallel), \
                 ("`model` is not a `DataParallel` instance")
+            self.model = model
         else:
             self.device_ids = None
             self.output_device = 0
+            self.model = model
 
         self.timer = Timer()
         self.train_metric_meters = MetricMeter(
@@ -126,6 +139,12 @@ class SingleNodeRunner():
             meter_win_size,
             ["loss"] + list(self.metric_funcs.keys())
         )
+
+        assert os.path.isdir(work_dir), \
+            f"`work_dir`='{work_dir}' is not a directory."
+        if not os.path.exists(work_dir):
+            os.makedirs(work_dir)
+        self.work_dir = work_dir
 
 
     def train(
@@ -247,3 +266,46 @@ class SingleNodeRunner():
                 self.val_or_test(data_loader, "test")
             elif work == "inference":
                 self.inference(data_loader)
+        
+        self.model = self.model.cpu()
+
+    
+    def _save_checkpoint(
+            self,
+            checkpoint_name: str
+        ) -> None:
+        assert checkpoint_name.endswith(".tar"), \
+            (f"`checkpoint_name`='{checkpoint_name}' does "
+             f"not ends with an extension of '.tar'.")
+        if self.is_data_parellel:
+            model_state_dict = self.model.module.state_dict()
+        else:
+            model_state_dict = self.model.state_dict()
+        checkpoint = {
+            "model_state": model_state_dict,
+            "optimizer_state": self.optimizer.state_dict()
+        }
+        checkpoint_path = os.path.join(self.work_dir, checkpoint_name)
+        torch.save(checkpoint, checkpoint_path)
+
+    
+    def _load_checkpoint(
+            self,
+            checkpoint_path: str
+        ) -> None:
+        assert os.path.exists(checkpoint_path), \
+            f"`checkpoint_path`='{checkpoint_path}' does not exists."
+        assert os.path.isfile(checkpoint_path), \
+            f"`checkpoint_path`={checkpoint_path} is not a file."
+        checkpoint = torch.load(checkpoint_path)
+        if self.is_data_parellel:
+            self.model.module.load_state_dict(
+                checkpoint["model_state"],
+                map_location=f"cuda:{self.output_device}"
+            )
+        else:
+            self.model.load_state_dict(
+                checkpoint["model_state"],
+                map_loacation=f"cuda:{self.output_device}"
+            )
+        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
