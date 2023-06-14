@@ -12,4 +12,5 @@ __pycache__/
 *.txt
 *.log
 *.pth
+*.tar
 **/tmp*
