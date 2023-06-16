@@ -34,7 +34,9 @@ def setup_logging(log_path: Optional[str]) -> None:
         "format": _FORMAT
     }
     if log_path:
-        logging_config.update({"filename": log_path})
+        log_handler = logging.FileHandler(log_path)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        logging_config.update({"handlers": [log_handler, stream_handler]})
     else:
         logging_config.update({"stream": sys.stdout})
     logging.basicConfig(**logging_config)

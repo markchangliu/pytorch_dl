@@ -9,10 +9,11 @@ import torch
 import torch.nn as nn
 from typing import Optional
 from pytorch_dl.models.building_parts.blocks import ResResidualBlock
-from pytorch_dl.models.builder import stage_registry
+
+# from pytorch_dl.models.builder import stage_registry
 
 
-@stage_registry.register_module("ResStage")
+# @stage_registry.register_module("ResStage")
 class ResStage(nn.Module):
     """The stage of ResNet. 
     Composition: `d` numbers of `ResResidualBlock`.

@@ -176,7 +176,7 @@ class _SingleNodeRunner():
             checkpoint_interval: int = 5,
             is_data_parallel: bool = False
         ) -> None:
-        _logger.info(f"Training process starts...")
+        _logger.info(f"Training process spthts...")
 
         num_batches = len(train_data_loader)
         total_num_samples = len(train_data_loader.dataset)
@@ -225,12 +225,12 @@ class _SingleNodeRunner():
             if (epoch_idx + 1) % checkpoint_interval == 0:
                 checkpoint_path = os.path.join(
                     self.work_dir, 
-                    f"epoch_{epoch_idx}.tar"
+                    f"epoch_{epoch_idx}.pth"
                 )
                 self._save_checkpoint(
                     model.module if is_data_parallel else model,
                     optimizer,
-                    f"epoch_{epoch_idx}.tar"
+                    f"epoch_{epoch_idx}.pth"
                 )
         
         epoch_info = train_metric_meter.log_global_avg()
@@ -252,7 +252,7 @@ class _SingleNodeRunner():
         self._save_checkpoint(
             model.module if is_data_parallel else model,
             optimizer,
-            os.path.join(self.work_dir, f"epoch_last.tar")
+            os.path.join(self.work_dir, f"epoch_last.pth")
         )
 
         _logger.info("Training process completess.")
@@ -269,7 +269,7 @@ class _SingleNodeRunner():
             iter_log_interval: int = 1,
             is_data_parallel: bool = False
         ) -> None:
-        _logger.info(f"Testing process starts...")
+        _logger.info(f"Testing process spthts...")
 
         model.eval()
 
@@ -299,7 +299,7 @@ class SingleGpuRunner(_SingleNodeRunner):
             work_dir: Optional[str] = None,
             output_device: Optional[int] = None,
         ) -> None:
-        _logger.info("SingleGpuRunner initialization starts...")
+        _logger.info("SingleGpuRunner initialization spthts...")
         super(SingleGpuRunner, self).__init__(
             work_dir,
             None,
@@ -368,7 +368,7 @@ class DataParallelRunner(_SingleNodeRunner):
             device_ids: Optional[List[int]] = None, 
             output_device: Optional[int] = None
         ) -> None:
-        _logger.info("DataParallelRunner initialization starts...")
+        _logger.info("DataParallelRunner initialization spthts...")
         super(DataParallelRunner, self).__init__(
             work_dir, 
             device_ids, 

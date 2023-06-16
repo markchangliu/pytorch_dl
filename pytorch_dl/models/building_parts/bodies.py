@@ -9,12 +9,11 @@ import torch
 import torch.nn as nn
 from typing import List, Optional, Dict, Any
 
-# import pytorch_dl.models.building_blocks.stages as stage_module
-from pytorch_dl.models.builder import body_registry
+# from pytorch_dl.models.builder import body_registry
 from pytorch_dl.models.building_parts.stages import ResStage
 
 
-@body_registry.register_module("ResBody")
+# @body_registry.register_module("ResBody")
 class ResBody(nn.Module):
     def __init__(
             self,
