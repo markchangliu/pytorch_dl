@@ -11,13 +11,13 @@ from typing import Optional, Union
 
 
 def _get_trans_block(
-        trans_block_name: str
+        trans_block_type: str
     ) -> Union["ResBasicBlock", "ResBottleneckBlock"]:
     """Return ResNet block class based on the string name provided by
     `trans_blcok_name`.
 
     Args:
-        trans_block_name (str):
+        trans_block_type (str):
             The name of transformation block, should be one of 
             `ResBasicBlock` or `ResBottleneckBlock`.
     Returns:
@@ -29,7 +29,7 @@ def _get_trans_block(
         "ResBasicBlock": ResBasicBlock,
         "ResBottleneckBlock": ResBottleneckBlock
     }
-    return _d[trans_block_name]
+    return _d[trans_block_type]
 
 
 class ResBasicBlock(nn.Module):
@@ -150,7 +150,7 @@ class ResResidualBlock(nn.Module):
             c_in: int,
             c_out: int,
             c_b: Optional[int],
-            trans_block_name: str
+            trans_block_type: str
         ) -> None:
         """
         Args:
@@ -163,17 +163,17 @@ class ResResidualBlock(nn.Module):
             c_out (int):
                 Number of output channel.
             c_b (Optional[int]):
-                Number of bottleneck channel. If `trans_block_name==
+                Number of bottleneck channel. If `trans_block_type==
                 res_basic_block`, this arg will not be used.
-            trans_block_name (str):
-                Name of the transformation block, should be one of
+            trans_block_type (str):
+                Type of the transformation block, should be one of
                 `res_basic_block` or `res_bottleneck_block`.
         
         Returns:
             None
         """
         super(ResResidualBlock, self).__init__()
-        trans_block_cls = _get_trans_block(trans_block_name)
+        trans_block_cls = _get_trans_block(trans_block_type)
         trans_block = trans_block_cls(stride, c_in, c_out, c_b)
         if c_in != c_out or stride > 1:
             shortcut = nn.Sequential(

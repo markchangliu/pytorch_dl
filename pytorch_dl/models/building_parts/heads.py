@@ -9,12 +9,9 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-# from pytorch_dl.models.builder import head_registry
-
 
 ############### Classification head ###############
 
-# @head_registry.register_module("ResLinearHead")
 class ResLinearHead(nn.Module):
     """The linear head used in all ResNet series.
     Composition: AdaptiveAvgPool, Linear.
@@ -51,7 +48,6 @@ class ResLinearHead(nn.Module):
         return X
     
 
-# @head_registry.register_module("ResConvHead")
 class ResConvHead(nn.Module):
     """Replace the fc-layer in official ResNet head with a conv1x1 layer.
     Composition: AdaptiveAvgPool, Conv1x1.
@@ -87,7 +83,6 @@ class ResConvHead(nn.Module):
         return X
     
 
-# @head_registry.register_module("ResLightHead")
 class ResLightHead(nn.Module):
     """A light-weight classification head for all ResNet series.
     Composition: AdaptiveAvgPool2d.

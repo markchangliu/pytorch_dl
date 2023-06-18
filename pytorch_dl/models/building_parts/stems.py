@@ -7,10 +7,8 @@
 
 import torch
 import torch.nn as nn
-from pytorch_dl.models.builder import stem_registry
 
 
-@stem_registry.register_module("ResStem")
 class ResStem(nn.Module):
     """The stem used in all ResNet series.
     Composition: 7x7, BN, Relu, MaxPool.

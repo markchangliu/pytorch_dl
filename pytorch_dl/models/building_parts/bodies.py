@@ -9,11 +9,9 @@ import torch
 import torch.nn as nn
 from typing import List, Optional, Dict, Any
 
-# from pytorch_dl.models.builder import body_registry
 from pytorch_dl.models.building_parts.stages import ResStage
 
 
-# @body_registry.register_module("ResBody")
 class ResBody(nn.Module):
     def __init__(
             self,
@@ -21,7 +19,7 @@ class ResBody(nn.Module):
             stage_depths: List[int],
             stage_widths: List[int],
             stage_bottleneck_widths: Optional[List[int]],
-            trans_block_name: str
+            trans_block_type: str
         ) -> None:
         super(ResBody, self).__init__()
         param_dict = {
@@ -29,7 +27,7 @@ class ResBody(nn.Module):
             "stage_widths": stage_widths,
             "stage_strides": stage_strides,
             "stage_bottleneck_widths": stage_bottleneck_widths,
-            "trans_block_name": trans_block_name,
+            "trans_block_type": trans_block_type,
         }
         self._param_check(param_dict)
         self._construct_body()
@@ -40,19 +38,19 @@ class ResBody(nn.Module):
         stage_strides = param_dict["stage_strides"]
         stage_widths = param_dict["stage_widths"]
         stage_bottleneck_widths = param_dict["stage_bottleneck_widths"]
-        trans_block_name = param_dict["trans_block_name"]
-        _valid_trans_block_names = ["ResBasicBlock", "ResBottleneckBlock"]
+        trans_block_type = param_dict["trans_block_type"]
+        _valid_trans_block_types = ["ResBasicBlock", "ResBottleneckBlock"]
 
-        assert trans_block_name in _valid_trans_block_names, \
-            ("'trans_block_name={0}' is not a valid block. Valid blocks "
-            "are {1}".format(trans_block_name, _valid_trans_block_names))
+        assert trans_block_type in _valid_trans_block_types, \
+            ("'trans_block_type={0}' is not a valid block. Valid blocks "
+            "are {1}".format(trans_block_type, _valid_trans_block_types))
         
-        if trans_block_name == "ResBasicBlock":
+        if trans_block_type == "ResBasicBlock":
             assert len(stage_depths) == len(stage_strides) == len(stage_widths), \
                 ("`stage_depths`, `stage_strides`, `stage_widths` should "
                 "be equal in length.")
             stage_bottleneck_widths = [None for i in range(len(stage_depths))]
-        elif trans_block_name == "ResBottleneckBlock":
+        elif trans_block_type == "ResBottleneckBlock":
             assert len(stage_depths) == len(stage_strides) \
                 == len(stage_widths) == len(stage_bottleneck_widths), \
                 ("`stage_depths`, `stage_strides`, `stage_widths`, "
@@ -66,7 +64,7 @@ class ResBody(nn.Module):
         self.stage_strides = stage_strides
         self.stage_widths = stage_widths
         self.stage_bottleneck_widths = stage_bottleneck_widths
-        self.trans_block_name = trans_block_name
+        self.trans_block_type = trans_block_type
 
     
     def _construct_body(self) -> None:
@@ -74,7 +72,7 @@ class ResBody(nn.Module):
         stage_idx = 0
         for s, d, c, c_b in zip(self.stage_strides, self.stage_depths, 
             self.stage_widths, self.stage_bottleneck_widths):
-            res_stage = ResStage(s, c_last, c, d, self.trans_block_name, c_b)
+            res_stage = ResStage(s, c_last, c, d, self.trans_block_type, c_b)
             self.add_module(f"stage_{stage_idx}", res_stage)
             c_last = c
             stage_idx += 1
