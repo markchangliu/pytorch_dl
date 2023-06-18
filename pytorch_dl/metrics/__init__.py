@@ -31,7 +31,24 @@ def _build_classification_loss_func(
     return loss_func
 
 
-
+def _build_classification_metrics(
+        metric_func_cfg: Dict[str, Any]
+    ) -> Dict[str, Callable[[Tensor, Tensor], float]]:
+    supported_metric_funcs = {
+        "Accuracy": Accuracy,
+        "Precision": Precision,
+        "Recall": Recall
+    }
+    metric_func_cfg = copy.deepcopy(metric_func_cfg)
+    metric_types = metric_func_cfg.pop("types")
+    metric_funcs = {}
+    for metric_type in metric_types:
+        assert metric_type in supported_metric_funcs.keys(), \
+        (f"Metric func type '{metric_type}' is not one "
+         f"of the supported types '{list(supported_metric_funcs.keys())}'.")
+        metric_func_cfg = metric_func_cfg[metric_type]
+        metric_func = supported_metric_funcs[metric_type](**metric_func_cfg)
+        metric_funcs.update({metric_type: metric_func})
 
 
 def build_loss_func(
@@ -43,3 +60,14 @@ def build_loss_func(
     }
     loss_func = build_funcs[task_type](loss_func_cfg)
     return loss_func
+
+
+def build_metric_funcs(
+        task_type: str,
+        metric_func_cfgs: Dict[str, Any]
+    ) -> Callable[[Any], float]:
+    build_funcs = {
+        "classification": _build_classification_metrics
+    }
+    metric_funcs = build_funcs[task_type](metric_func_cfgs)
+    return metric_funcs
