@@ -8,13 +8,15 @@ All transformation operations' input and output are PIL Image object.
 """
 
 
+import copy
 import PIL.Image as pil_image
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
 from PIL.Image import Image
 from random import randint
-from typing import Optional, Tuple
+from torchvision.transforms import Compose, ToTensor
+from typing import Optional, Tuple, List, Dict, Any
 
 
 class ResizePad(nn.Module):
@@ -106,3 +108,26 @@ class FixedCrop(nn.Module):
         w_new = new_x2 - new_x1
         h_new = new_y2 - new_y1
         return F.crop(img, new_y1, new_x1, h_new, w_new)
+    
+
+def build_transforms(
+        transform_cfgs: Dict[str, Any]
+    ) -> Compose:
+    supported_transforms = {
+        "ResizePad": ResizePad,
+        "RandomCrop": RandomCrop,
+        "FixedCrop": FixedCrop,
+        "ToTensor": ToTensor
+    }
+    transform_cfgs = copy.deepcopy(transform_cfgs)
+    transform_types = transform_cfgs.pop("types")
+    transforms = []
+    for transform_type in transform_types:
+        assert transform_type in supported_transforms.keys(), \
+            (f"Transform type '{transform_type}' is not one of the "
+             f"supported types {list(supported_transforms.keys())}.")
+        transform_cfg = transform_cfgs[transform_type]
+        transforms.append(
+            supported_transforms[transform_type](**transform_cfg)
+        )
+    transforms = Compose(transforms)

@@ -22,22 +22,11 @@ from PIL.Image import Image
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import Dataset
-from typing import Tuple, List, Callable, Optional, Dict
+from typing import Tuple, List, Optional, Dict, Any
 
 from pytorch_dl.core.io import gen_img_paths, gen_pickle_data
+from pytorch_dl.data.transforms import build_transforms
 
-
-############## Toy dataset ##############
-
-# class ToyDataset(Dataset):
-#     def __init__(self, ) -> None:
-#         super(ToyDataset, self).__init__()
-
-#     def __len__(self) -> int:
-#         return 512
-    
-#     def __getitem__(self, index) -> Any:
-#         return 
 
 ############## Image folder dataset ##############
 
@@ -46,10 +35,13 @@ class ImgFolderDataset(Dataset):
             self, 
             img_dir: str,
             class_names: List[str],
-            transforms: Optional[Module]
+            transform_cfgs: Optional[Dict[str, Any]] = None,
         ) -> None:
         super(ImgFolderDataset, self).__init__()
-        self.transforms = transforms
+        if transform_cfgs:
+            self.transforms = build_transforms(transform_cfgs)
+        else:
+            self.transforms = None
         self._dataset = []
         self._construct_ds(img_dir, class_names)
     
@@ -136,10 +128,13 @@ class PickleDataset(Dataset):
             data_pickle_paths: List[str],
             class_names: List[str],
             img_size: Tuple[int, int],
-            transforms: Optional[Module]
+            transform_cfgs: Optional[Dict[str, Any]] = None,
         ) -> None:
         self.img_size = img_size
-        self.transforms = transforms
+        if transform_cfgs:
+            self.transforms = build_transforms(transform_cfgs)
+        else:
+            self.transforms = None
         self._construct_ds(
             data_pickle_paths,
             class_names,

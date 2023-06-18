@@ -12,6 +12,7 @@ from statistics import mean
 from torch import Tensor
 from torch.nn import Module, DataParallel
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler as Scheduler
 from torch.utils.data import DataLoader
 from typing import Optional, Callable, Tuple, Any, Dict, List, Union
 
@@ -57,12 +58,14 @@ class _SingleNodeRunner():
             self,
             model: Module,
             optimizer: Optimizer,
+            scheduler: Scheduler,
             checkpoint_path: str
         ) -> None:
         _logger.info(f"Saving checkpoint at '{checkpoint_path}'...")
         checkpoint = {
             "model_state": model.state_dict(),
-            "optimizer_state": optimizer.state_dict()
+            "optimizer_state": optimizer.state_dict(),
+            "scheduler_state": scheduler.state_dict()
         }
         torch.save(checkpoint, checkpoint_path)
         _logger.info(f"Saving checkpoint completes.")
@@ -72,6 +75,7 @@ class _SingleNodeRunner():
             self,
             model: Module,
             optimizer: Optimizer,
+            scheduler: Scheduler,
             data_loader: DataLoader,
             loss_func: Callable[[Any, Any], Tensor],
             metric_funcs: Dict[str, Callable[[Any, Any], float]],
@@ -111,6 +115,8 @@ class _SingleNodeRunner():
                     f"iter {num_samples}/{total_num_samples}, "
                     f"{iter_info}."
                 )
+        
+        scheduler.step()
 
     
     @torch.no_grad()
@@ -165,6 +171,7 @@ class _SingleNodeRunner():
             num_epoches: int,
             model: Union[Module, DataParallel],
             optimizer: Optimizer,
+            scheduler: Scheduler,
             train_data_loader: DataLoader,
             val_data_loader: DataLoader,
             loss_func: Callable[[Any, Any], Tensor],
@@ -193,6 +200,7 @@ class _SingleNodeRunner():
             self._train_one_epoch(
                 model,
                 optimizer,
+                scheduler,
                 train_data_loader,
                 loss_func,
                 metric_funcs,
@@ -313,6 +321,7 @@ class SingleGpuRunner(_SingleNodeRunner):
             num_epoches: int, 
             model: Module, 
             optimizer: Optimizer, 
+            scheduler: Scheduler,
             train_data_loader: DataLoader, 
             val_data_loader: DataLoader, 
             loss_func: Callable[[Any, Any], Tensor], 
@@ -327,6 +336,7 @@ class SingleGpuRunner(_SingleNodeRunner):
             num_epoches, 
             model, 
             optimizer, 
+            scheduler,
             train_data_loader, 
             val_data_loader, 
             loss_func, 
@@ -382,6 +392,7 @@ class DataParallelRunner(_SingleNodeRunner):
             num_epoches: int, 
             model: Module, 
             optimizer: Optimizer, 
+            scheduler: Scheduler,
             train_data_loader: DataLoader, 
             val_data_loader: DataLoader, 
             loss_func: Callable[[Any, Any], Tensor], 
@@ -396,6 +407,7 @@ class DataParallelRunner(_SingleNodeRunner):
             num_epoches, 
             model, 
             optimizer, 
+            scheduler,
             train_data_loader, 
             val_data_loader, 
             loss_func, 
