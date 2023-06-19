@@ -38,7 +38,7 @@ def _build_classification_dataset(
     
     transform_cfgs = dataset_cfg.pop("transforms", None)
     dataset_cfg.update({"transform_cfgs": transform_cfgs})
-    dataset = CLASSIFICATION_DS[dataset_type](dataset_cfg)
+    dataset = CLASSIFICATION_DS[dataset_type](**dataset_cfg)
     return dataset
 
 
