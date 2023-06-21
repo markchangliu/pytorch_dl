@@ -126,8 +126,13 @@ def build_transforms(
         assert transform_type in supported_transforms.keys(), \
             (f"Transform type '{transform_type}' is not one of the "
              f"supported types {list(supported_transforms.keys())}.")
-        transform_cfg = transform_cfgs[transform_type]
-        transforms.append(
-            supported_transforms[transform_type](**transform_cfg)
-        )
+        transform_cfg = transform_cfgs.get(transform_type, None)
+        if transform_cfg:
+            transforms.append(
+                supported_transforms[transform_type](**transform_cfg)
+            )
+        else:
+            transforms.append(
+                supported_transforms[transform_type]()
+            )
     transforms = Compose(transforms)

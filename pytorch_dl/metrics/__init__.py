@@ -27,7 +27,11 @@ def _build_classification_loss_func(
     assert loss_func_type in supported_loss_funcs.keys(), \
         (f"Loss func type '{loss_func_type}' is not one "
          f"of the supported types '{list(supported_loss_funcs.keys())}'.")
-    loss_func = supported_loss_funcs[loss_func_type](**loss_func_cfg)
+    loss_func_param = loss_func_cfg.get(loss_func_type, None)
+    if loss_func_cfg:
+        loss_func = supported_loss_funcs[loss_func_type](**loss_func_param)
+    else:
+        loss_func = supported_loss_funcs[loss_func_type]()
     return loss_func
 
 
@@ -47,7 +51,11 @@ def _build_classification_metrics(
         (f"Metric func type '{metric_type}' is not one "
          f"of the supported types '{list(supported_metric_funcs.keys())}'.")
         metric_func_cfg = metric_func_cfg[metric_type]
-        metric_func = supported_metric_funcs[metric_type](**metric_func_cfg)
+        metric_func_param = metric_func_cfg.get(metric_type, None)
+        if metric_func_param:
+            metric_func = supported_metric_funcs[metric_type](**metric_func_param)
+        else:
+            metric_func = supported_metric_funcs[metric_type]()
         metric_funcs.update({metric_type: metric_func})
 
 

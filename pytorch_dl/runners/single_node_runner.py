@@ -172,8 +172,8 @@ class _SingleNodeRunner():
             model: Union[Module, DataParallel],
             optimizer: Optimizer,
             scheduler: Scheduler,
-            train_data_loader: DataLoader,
-            val_data_loader: DataLoader,
+            train_dataloader: DataLoader,
+            val_dataloader: DataLoader,
             loss_func: Callable[[Any, Any], Tensor],
             metric_funcs: Dict[str, Callable[[Any, Any], float]],
             meter_win_size: int = 20,
@@ -185,8 +185,8 @@ class _SingleNodeRunner():
         ) -> None:
         _logger.info(f"Training process spthts...")
 
-        num_batches = len(train_data_loader)
-        total_num_samples = len(train_data_loader.dataset)
+        num_batches = len(train_dataloader)
+        total_num_samples = len(train_dataloader.dataset)
         train_metric_meter = MetricMeter(
             meter_win_size,
             ["loss"] + list(metric_funcs.keys())
@@ -201,7 +201,7 @@ class _SingleNodeRunner():
                 model,
                 optimizer,
                 scheduler,
-                train_data_loader,
+                train_dataloader,
                 loss_func,
                 metric_funcs,
                 train_metric_meter,
@@ -221,7 +221,7 @@ class _SingleNodeRunner():
             if (epoch_idx + 1) % val_interval == 0:
                 self._test_one_epoch(
                     model,
-                    val_data_loader,
+                    val_dataloader,
                     loss_func,
                     metric_funcs,
                     val_metric_meter,
@@ -248,7 +248,7 @@ class _SingleNodeRunner():
 
         self._test_one_epoch(
             model,
-            val_data_loader,
+            val_dataloader,
             loss_func,
             metric_funcs,
             val_metric_meter,
@@ -322,8 +322,8 @@ class SingleGpuRunner(_SingleNodeRunner):
             model: Module, 
             optimizer: Optimizer, 
             scheduler: Scheduler,
-            train_data_loader: DataLoader, 
-            val_data_loader: DataLoader, 
+            train_dataloader: DataLoader, 
+            val_dataloader: DataLoader, 
             loss_func: Callable[[Any, Any], Tensor], 
             metric_funcs: Dict[str, Callable[[Any, Any], float]], 
             meter_win_size: int = 20, 
@@ -337,8 +337,8 @@ class SingleGpuRunner(_SingleNodeRunner):
             model, 
             optimizer, 
             scheduler,
-            train_data_loader, 
-            val_data_loader, 
+            train_dataloader, 
+            val_dataloader, 
             loss_func, 
             metric_funcs, 
             meter_win_size, 
@@ -393,8 +393,8 @@ class DataParallelRunner(_SingleNodeRunner):
             model: Module, 
             optimizer: Optimizer, 
             scheduler: Scheduler,
-            train_data_loader: DataLoader, 
-            val_data_loader: DataLoader, 
+            train_dataloader: DataLoader, 
+            val_dataloader: DataLoader, 
             loss_func: Callable[[Any, Any], Tensor], 
             metric_funcs: Dict[str, Callable[[Any, Any], float]], 
             meter_win_size: int = 20, 
@@ -408,8 +408,8 @@ class DataParallelRunner(_SingleNodeRunner):
             model, 
             optimizer, 
             scheduler,
-            train_data_loader, 
-            val_data_loader, 
+            train_dataloader, 
+            val_dataloader, 
             loss_func, 
             metric_funcs, 
             meter_win_size, 
