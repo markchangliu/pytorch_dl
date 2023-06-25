@@ -7,111 +7,54 @@
 
 from torch import Tensor
 from torch.nn import Module
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
-from pytorch_dl.models.building_parts.stems import ResStem
+from pytorch_dl.models.classifiers.base_classifier import BaseClassifier
 from pytorch_dl.models.building_parts.bodies import ResBody
-from pytorch_dl.models.building_parts.heads import (
-    ResConvHead,
-    ResLightHead,
-    ResLinearHead
-)
+from pytorch_dl.models.building_parts.stems import ResStem
+from pytorch_dl.models.building_parts.heads import ResLinearHead, ResConvHead
 
 
-_STEMS = {"ResStem": ResStem}
-_BODIES = {"ResBody": ResBody}
-_HEADS = {
-    "ResConvHead": ResConvHead, 
-    "ResLightHead": ResLightHead,
-    "ResLinearHead": ResLinearHead
-}
+__all__ = ["ResNetClassifier", "ResNet18Classifier", "ResNet50Classifier"]
 
 
-class ResNetClassifier(Module):
+class ResNetClassifier(BaseClassifier):
     def __init__(
-            self,
+            self, 
             num_classes: int,
-            stem_cfg: Dict[str, Any],
-            body_cfg: Dict[str, Any],
-            head_cfg: Dict[str, Any]
-        ) -> None:
-        super(ResNetClassifier, self).__init__()
-
-        assert type(num_classes) is int, (
-            "`num_classes` should be an int."
+            stage_strides: List[int],
+            stage_depths: List[int],
+            stage_widths: List[int],
+            stage_bottleneck_widths: Optional[List[int]] = None,
+        ):
+        self.stem = ResStem(64)
+        self.body = ResBody(
+            64,
+            stage_strides,
+            stage_depths,
+            stage_widths,
+            stage_bottleneck_widths
         )
+        self.head = ResLinearHead(stage_widths[-1], num_classes)
 
-        stem_type = stem_cfg.pop("type")
-        assert stem_type in _STEMS.keys(), \
-            f"Stem type '{stem_type}' is not one of the supported types '{_STEMS.keys()}'."
-        self.stem = _STEMS[stem_type](**stem_cfg)
-        
-        body_type = body_cfg.pop("type")
-        assert body_type in _BODIES.keys(), \
-            f"Body type '{body_type}' is not one of the supported bodies '{_BODIES.keys()}'."
-        self.body = _BODIES[body_type](**body_cfg)
-
-        head_type = head_cfg.pop("type")
-        assert head_type in _HEADS.keys(), \
-            f"Head type '{head_type}' is not one of the supported heads '{_HEADS.keys()}'."
-        self.head = _HEADS[head_type](**head_cfg)
-    
-
-    def forward(self, X: Tensor) -> Tensor:
-        for building_part in self.children():
-            X = building_part(X)
-        return X
-    
 
 class ResNet18Classifier(ResNetClassifier):
     def __init__(self, num_classes: int) -> None:
-        stem_cfg = {
-            "type": "ResStem",
-            "c_out": 64
-        }
-        body_cfg = {
-            "type": "ResBody",
-            "stage_strides": [1, 2, 2, 2],
-            "stage_depths": [2, 2, 2, 2],
-            "stage_widths": [64, 128, 256, 512],
-            "stage_bottleneck_widths": None,
-            "trans_block_type": "ResBasicBlock"
-        }
-        head_cfg = {
-            "type": "ResLinearHead",
-            "c_in": 512,
-            "num_classes": num_classes
-        }
         super(ResNet18Classifier, self).__init__(
             num_classes,
-            stem_cfg,
-            body_cfg,
-            head_cfg
+            [1, 2, 2, 2],
+            [2, 2, 2, 2],
+            [64, 128, 256, 512],
+            None
         )
 
 
 class ResNet50Classifier(ResNetClassifier):
     def __init__(self, num_classes: int) -> None:
-        stem_cfg = {
-            "type": "ResStem",
-            "c_out": 64
-        }
-        body_cfg = {
-            "type": "ResBody",
-            "stage_strides": [1, 2, 2, 2],
-            "stage_depths": [3, 4, 6, 3],
-            "stage_widths": [256, 512, 1024, 2048],
-            "stage_bottleneck_widths": [64, 128, 256, 512],
-            "trans_block_type": "ResBottleneckBlock"
-        }
-        head_cfg = {
-            "type": "ResLinearHead",
-            "c_in": 2048,
-            "num_classes": num_classes
-        }
         super(ResNet50Classifier, self).__init__(
             num_classes,
-            stem_cfg,
-            body_cfg,
-            head_cfg
+            [1, 2, 2, 2],
+            [3, 4, 6, 3],
+            [256, 512, 1024, 2048],
+            [64, 128, 256, 512]
         )

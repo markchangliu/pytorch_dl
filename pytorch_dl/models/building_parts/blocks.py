@@ -5,9 +5,13 @@
 """Block module."""
 
 
+import copy
 import torch
 import torch.nn as nn
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any
+
+
+__all__ = ["ResResidualBlock"]
 
 
 def _get_trans_block(
@@ -187,6 +191,15 @@ class ResResidualBlock(nn.Module):
             "trans_block": trans_block
         })
         self.l1_2 = nn.ReLU()
+
+        self._cfg = {
+            "type": type(self).__name__,
+            "stride": stride,
+            "c_in": c_in,
+            "c_out": c_out,
+            "c_b": c_b,
+            "trans_block_type": trans_block_type
+        }
     
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Forward propogation.
@@ -204,3 +217,7 @@ class ResResidualBlock(nn.Module):
             X_ += self.l1_1["shortcut"](X)
         X_ = self.l1_2(X_)
         return X_
+    
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)

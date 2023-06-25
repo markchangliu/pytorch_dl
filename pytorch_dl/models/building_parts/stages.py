@@ -5,73 +5,80 @@
 """Stage module."""
 
 
+import copy
 import torch
 import torch.nn as nn
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from pytorch_dl.models.building_parts.blocks import ResResidualBlock
 
 
-class ResStage(nn.Module):
-    """The stage of ResNet. 
-    Composition: `d` numbers of `ResResidualBlock`.
-    """
+_BLOCKS: Dict[str, nn.Module] = {
+    "ResResidualBlock": ResResidualBlock
+}
 
+__all__ = ["Stages", "ResStage"]
+
+
+class Stages(nn.Module):
+    def __init__(
+            self,
+            d: int,
+            block_cfg: Dict[str, Any]
+        ) -> None:
+        super(Stages, self).__init__()
+        block_cfg = copy.deepcopy(block_cfg)
+        block_type = block_cfg.pop("type")
+        assert block_cfg in _BLOCKS.keys(), \
+            (f"block type '{block_type}' is not one of the "
+             f"supported blocks '{list(_BLOCKS.keys())}'")
+        block = _BLOCKS[block_type]
+        
+        for i in range(d):
+            self.add_module(f"block_{i + 1}", block(**block_cfg))
+        
+        self._cfg = {
+            "type": type(self).__name__,
+            "d": d,
+            "block_cfg": block_cfg
+        }
+
+    
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        for block in self.children():
+            X = block(X)
+        return X
+    
+    
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
+    
+
+class ResStage(Stages):
     def __init__(
             self, 
+            d: int, 
             stride: int,
-            c_in: int, 
-            c_out: int, 
-            d: int,
-            trans_block_type: str,
-            c_b: Optional[int] = None,
+            c_in: int,
+            c_out: int,
+            c_b: Optional[int] = None
         ) -> None:
-        """
-        Args:
-            stride (int):
-                Number of strides, stride=1 will maintain the feature
-                size unchanged, stride=2 will halve the feature height 
-                and width and double the channel number.
-            c_in (int):
-                Number of input channel.
-            c_out (int):
-                Number of output channel.
-            d (int):
-                Depth, or the number of blocks, in this stage.
-            trans_block_type (str):
-                Type of the transformation block, should be one of
-                `res_basic_block` or `res_bottleneck_block`.
-            c_b (Optional[int]):
-                Number of bottleneck channel. If `trans_block_type==
-                res_basic_block`, this arg will not be used. Default
-                None.
-        
-        Returns:
-            None
-        """
-        super(ResStage, self).__init__()
-        trans_blocks = []
-        for i in range(d):
-            if i == 0:
-                trans_block = ResResidualBlock(stride, c_in, c_out, 
-                    c_b, trans_block_type)
-            else:
-                trans_block = ResResidualBlock(1, c_out, c_out, c_b,
-                    trans_block_type)
-            self.add_module(f"block_{i}", trans_block)
-                
-                
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """Forward propogation.
+        block_cfg = {
+            "type": "ResResidualBlock",
+            "stride": stride,
+            "c_in": c_in,
+            "c_out": c_out
+        }
+        if c_b:
+            block_cfg.update({
+                "c_b": c_b,
+                "trans_block_type": "ResBottleneckBlock"
+            })
+        else:
+            block_cfg.update({
+                "c_b": None,
+                "trans_block_type": "ResBasicBlock"
+            })
 
-        Args:
-            X (Tensor):
-                Input tensor.
-        
-        Returns:
-            output (Tensor):
-                Output feature maps.
-        """
-        for trans_block in self.children():
-            X = trans_block(X)
-        return X
+        super(ResStage, self).__init__(d, block_cfg)

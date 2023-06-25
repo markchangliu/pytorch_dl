@@ -9,6 +9,9 @@ import torch
 import torch.nn as nn
 
 
+__all__ = ["ResStem"]
+
+
 class ResStem(nn.Module):
     """The stem used in all ResNet series.
     Composition: 7x7, BN, Relu, MaxPool.

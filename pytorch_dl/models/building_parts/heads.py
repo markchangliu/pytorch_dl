@@ -10,6 +10,9 @@ import torch.nn as nn
 from typing import Optional
 
 
+__all__ = ["ResLinearHead", "ResConvHead", "ResLightHead"]
+
+
 ############### Classification head ###############
 
 class ResLinearHead(nn.Module):
