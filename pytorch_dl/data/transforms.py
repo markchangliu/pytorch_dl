@@ -29,9 +29,6 @@ class ResizePad(nn.Module):
         assert new_size or new_ratio, (
             "You must provide one of `new_size` and `new_ratio`."
         )
-        assert new_size and new_ratio, (
-            "You cannot provide both of `new_size` and `new_ratio`."
-        )
         if new_size:
             self.new_size = new_size
             self.new_ratio = None

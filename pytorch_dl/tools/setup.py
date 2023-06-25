@@ -27,6 +27,9 @@ _logger = get_logger(__name__)
 _SetupReturnType = Tuple[object, Module, Optional[Optimizer], Optional[Scheduler],
                          Tuple[DataLoader, DataLoader], Dict[str, Any]]
 
+_TASK_TYPES = ["classification"]
+_MODES = ["train", "test", "inference"]
+
 
 def setup_task(
         cfg_path: str
@@ -38,14 +41,21 @@ def setup_task(
     assert task_cfg, f"`task` is not confugured."
 
     _logger.info(f"Seting up task...")
-    supported_types = ["classification"]
     task_type = task_cfg.get("type", None)
     assert task_type, \
         (f"`task.type` should be configured to one of the supported types "
-         f"'{supported_types}'. ")
-    assert task_type in supported_types, \
+         f"'{_TASK_TYPES}'. ")
+    assert task_type in _TASK_TYPES, \
         (f"Task type '{task_type}' is not one of the supported types "
-         f"'{supported_types}'.")
+         f"'{_TASK_TYPES}'.")
+    
+    checkpoint_path = cfg.get("checkpoint_path", None)
+    if checkpoint_path is not None:
+        _logger.info(
+            f"Model and/or optimizer will load from '{checkpoint_path}'."
+        )
+    else:
+        cfg.update({"checkpoint_path": None})
 
     if task_type == "classification":
         num_classes = task_cfg.get("num_classes", None)
@@ -59,6 +69,13 @@ def setup_task(
                 f"`range(task.num_classes)` is used as class names."
             )
             task_cfg.update({"class_names": list(range(num_classes))})
+        
+        _logger.info(f"Building model...")
+        model_cfg = cfg.pop("model", None)
+        assert model_cfg, f"`model` is not configured."
+        model_cfg.update({"num_classes": num_classes})
+        model = build_model(task_type, model_cfg, checkpoint_path)
+        _logger.info(f"Model building complete.")
         
     work_dir = task_cfg.get("work_dir", None)
     if work_dir is None:
@@ -81,7 +98,7 @@ def setup_task(
     assert len(device_ids) <= torch.cuda.device_count(), \
         (f"`task.device_ids` '{device_ids}' has more devices than "
          f"the number of available devices '{torch.cuda.device_count()}'.")
-    assert max(device_ids) >= torch.cuda.device_count(), \
+    assert max(device_ids) < torch.cuda.device_count(), \
         (f"`task.device_ids` '{device_ids}' has unaviliable device id, ",
          f"all ids should be smaller than '{torch.cuda.device_count()}'.")
     task_cfg.update({"device_ids": device_ids})
@@ -109,7 +126,7 @@ def setup_task(
         runner_type = "SingleGpuRunner"
         task_cfg.update({"runner_type": runner_type})
     runner_cfg = {
-        "type": runner_cfg,
+        "type": runner_type,
         "work_dir": task_cfg["work_dir"],
         "output_device": task_cfg["output_device"],
         "device_ids": task_cfg["device_ids"]
@@ -118,24 +135,9 @@ def setup_task(
     _logger.info(f"Runner building complete.")
 
     task_mode = task_cfg.get("mode", None)
-    supported_modes = ["train", "test", "inference"]
-    assert task_mode and task_mode in supported_modes, \
+    assert task_mode and task_mode in _MODES, \
         (f"`task.mode` should be configured to one of the "
-         f"supported modes '{supported_modes}'.")
-    
-    checkpoint_path = task_cfg.get("checkpoint_path", None)
-    if checkpoint_path is not None:
-        _logger.info(
-            f"Model and/or optimizer will load from '{checkpoint_path}'."
-        )
-    else:
-        task_cfg.update({"checkpoint_path": None})
-
-    _logger.info(f"Building model...")
-    model_cfg = task_cfg.pop("model", None)
-    assert model_cfg is None, f"`model` is not configured."
-    model = build_model("train", model_cfg, checkpoint_path)
-    _logger.info(f"Model building complete.")
+         f"supported modes '{_MODES}'.")
     
     if task_mode == "train":
         _logger.info(f"Loading training config...")
@@ -188,8 +190,8 @@ def setup_task(
         _logger.info(f"Train config loading complete.")
 
         _logger.info(f"Building optimizer and scheduler.")
-        optimizer_cfg = task_cfg.pop("optimizer", None)
-        assert optimizer_cfg is None, f"`optimizer` is not configured."
+        optimizer_cfg = cfg.pop("optimizer", None)
+        assert optimizer_cfg, f"`optimizer` is not configured."
         lr = optimizer_cfg.pop("lr", None)
         assert lr, f"`optimizer.lr` is not configured, '1e-5' is used as default."
         optimizer, scheduler = build_optimizer_scheduler(
@@ -203,26 +205,30 @@ def setup_task(
         train_dataloader_name = train_cfg.pop("train_dataloader", None)
         assert train_dataloader_name, \
             (f"`task.train.train_dataloader` is not configured.")
-        train_dataloader_cfg = task_cfg.pop(train_dataloader_name, None)
+        train_dataloader_cfg = cfg.pop(train_dataloader_name, None)
         assert train_dataloader_cfg, \
             (f"The train dataloader cfg is not found under the "
              f"namespace `task.{train_dataloader_name}`. Please ensure that "
              f"it is configured and the name '{train_dataloader_name}' "
              f"is mentioned at `task.train.train_dataloader`.")
-        train_dataloader = build_dataloader(train_dataloader_cfg)
+        if task_cfg["class_names"]:
+            train_dataloader_cfg["dataset"].update({"class_names": class_names})
+        train_dataloader = build_dataloader(task_type, train_dataloader_cfg)
         _logger.info(f"Train dataloader building complete...")
 
         _logger.info(f"Building val dataloader...")
         val_dataloader_name = train_cfg.pop("val_dataloader", None)
         assert val_dataloader_name, \
             (f"`task.train.val_dataloader` is not configured.")
-        val_dataloader_cfg = task_cfg.pop(val_dataloader_name, None)
+        val_dataloader_cfg = cfg.pop(val_dataloader_name, None)
         assert val_dataloader_cfg, \
             (f"The val dataloader cfg is not found under the "
              f"namespace `task.{val_dataloader_name}`. Please ensure that "
              f"it is configured and the name '{val_dataloader_name}' "
              f"is mentioned at `task.train.val_dataloader`.")
-        val_dataloader = build_dataloader(val_dataloader_cfg)
+        if task_cfg["class_names"]:
+            val_dataloader_cfg["dataset"].update({"class_names": class_names})
+        val_dataloader = build_dataloader(task_type, val_dataloader_cfg)
         _logger.info(f"Val dataloader building complete.")
 
         _logger.info(f"Train task setup complete.")

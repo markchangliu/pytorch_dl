@@ -19,7 +19,7 @@ from pytorch_dl.models.classifiers import *
 __all__ = ["build_model"]
 
 _MODELS = {
-    "classifier": build_classifier
+    "classification": build_classifier
 }
 
 def _init_weight(m: nn.Module) -> None:

@@ -305,9 +305,10 @@ class SingleGpuRunner(_SingleNodeRunner):
     def __init__(
             self,
             work_dir: Optional[str] = None,
+            device_ids: Optional[List[int]] = None,
             output_device: Optional[int] = None,
         ) -> None:
-        _logger.info("SingleGpuRunner initialization spthts...")
+        _logger.info("SingleGpuRunner initialization starts...")
         super(SingleGpuRunner, self).__init__(
             work_dir,
             None,

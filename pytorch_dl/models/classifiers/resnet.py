@@ -44,17 +44,17 @@ class ResNetClassifier(Module):
         stem_type = stem_cfg.pop("type")
         assert stem_type in _STEMS.keys(), \
             f"Stem type '{stem_type}' is not one of the supported types '{_STEMS.keys()}'."
-        self.stem = _STEMS[stem_type](stem_cfg)
+        self.stem = _STEMS[stem_type](**stem_cfg)
         
         body_type = body_cfg.pop("type")
         assert body_type in _BODIES.keys(), \
             f"Body type '{body_type}' is not one of the supported bodies '{_BODIES.keys()}'."
-        self.body = _BODIES[body_type](body_cfg)
+        self.body = _BODIES[body_type](**body_cfg)
 
         head_type = head_cfg.pop("type")
         assert head_type in _HEADS.keys(), \
             f"Head type '{head_type}' is not one of the supported heads '{_HEADS.keys()}'."
-        self.head = _HEADS[head_type](head_cfg)
+        self.head = _HEADS[head_type](**head_cfg)
     
 
     def forward(self, X: Tensor) -> Tensor:

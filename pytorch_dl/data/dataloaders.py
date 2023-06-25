@@ -12,10 +12,11 @@ from pytorch_dl.data.datasets import build_dataset
 
 
 def build_dataloader(
+        task_type: str, 
         dataloader_cfg: Dict[str, Any]
     ) -> DataLoader:
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
     dataset_cfg = dataloader_cfg.pop("dataset")
-    dataset = build_dataset(dataset_cfg)
+    dataset = build_dataset(task_type, dataset_cfg)
     dataloader_cfg.update({"dataset": dataset})
     dataloader = DataLoader(**dataloader_cfg)
