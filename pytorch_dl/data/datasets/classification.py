@@ -22,10 +22,13 @@ from PIL.Image import Image
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import Dataset
-from typing import Tuple, List, Optional, Dict, Any
+from typing import Tuple, List, Optional, Dict, Any, Callable
 
 from pytorch_dl.core.io import gen_img_paths, gen_pickle_data
-from pytorch_dl.data.transforms import build_transforms
+
+
+__all__ = ["TrainTestImgFolderDataset", "InferenceImgFolderDataset", 
+           "TrainTestPickleDataset", "InferencePickleDataset"]
 
 
 ############## Image folder dataset ##############
@@ -35,15 +38,21 @@ class ImgFolderDataset(Dataset):
             self, 
             img_dir: str,
             class_names: List[str],
-            transform_cfgs: Optional[Dict[str, Any]] = None,
+            transform: Optional[Callable[..., Any]] = None,
         ) -> None:
         super(ImgFolderDataset, self).__init__()
-        if transform_cfgs:
-            self.transforms = build_transforms(transform_cfgs)
+        if transform:
+            self.transform = transform
         else:
-            self.transforms = None
+            self.transform = None
         self._dataset = []
         self._construct_ds(img_dir, class_names)
+
+        self_cfg = {
+            "type": type(self).__name__,
+            "img_dir": img_dir,
+            "class_names": class_names
+        }
     
 
     def _construct_ds(
@@ -83,8 +92,8 @@ class ImgFolderDataset(Dataset):
         ) -> Tuple[Tensor, int]:
         img_path, cls_idx = self._dataset[index]
         img = pil_image.open(img_path).convert("RGB")
-        if self.transforms:
-            img = self.transforms(img)
+        if self.transform:
+            img = self.transform(img)
         return img, cls_idx
     
 
@@ -94,6 +103,11 @@ class ImgFolderDataset(Dataset):
 
     def get_cls_idx_name_dict(self) -> Dict[int, str]:
         return copy.deepcopy(self._cls_idx_name_dict)
+    
+
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
 
 
 class TrainTestImgFolderDataset(ImgFolderDataset):
@@ -128,19 +142,26 @@ class PickleDataset(Dataset):
             data_pickle_paths: List[str],
             class_names: List[str],
             img_size: Tuple[int, int],
-            transform_cfgs: Optional[Dict[str, Any]] = None,
+            transform: Optional[Callable[..., Any]] = None,
         ) -> None:
         self.img_size = img_size
-        if transform_cfgs:
-            self.transforms = build_transforms(transform_cfgs)
+        if transform:
+            self.transform = transform
         else:
-            self.transforms = None
+            self.transform = None
         self._construct_ds(
             data_pickle_paths,
             class_names,
             img_size
         )
         super(PickleDataset, self).__init__()
+
+        self._cfg = {
+            "type": type(self).__name__,
+            "data_pickle_paths": data_pickle_paths,
+            "class_names": class_names,
+            "img_size": img_size
+        }
         
     
     def _construct_ds(
@@ -196,8 +217,8 @@ class PickleDataset(Dataset):
         img_arr = self._data[index]
         img = pil_image.fromarray(img_arr, mode="RGB")
         class_idx = self._labels[index]
-        if self.transforms:
-            img = self.transforms(img)
+        if self.transform:
+            img = self.transform(img)
         return img, class_idx
     
 
@@ -207,6 +228,11 @@ class PickleDataset(Dataset):
 
     def get_cls_idx_name_dict(self) -> Dict[int, str]:
         return copy.deepcopy(self._cls_idx_name_dict)
+    
+
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
     
 
 class TrainTestPickleDataset(PickleDataset):

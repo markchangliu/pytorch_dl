@@ -19,7 +19,20 @@ from torchvision.transforms import Compose, ToTensor
 from typing import Optional, Tuple, List, Dict, Any
 
 
-class ResizePad(nn.Module):
+__all__ = ["ResizePad", "RandomCrop", "FixedCrop", "ToTensor"]
+
+
+class Transform(nn.Module):
+    def __init__(self):
+        super(Transform, self).__init__()
+        self._cfg = {}
+    
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
+
+
+class ResizePad(Transform):
     def __init__(
             self,
             new_size: Optional[Tuple[int, int]] = None,
@@ -35,6 +48,12 @@ class ResizePad(nn.Module):
         elif new_ratio:
             self.new_size = None
             self.new_ratio = new_ratio
+        
+        self._cfg.update({
+            "type": type(self).__name__,
+            "new_size": self.new_size,
+            "new_ratio": self.new_ratio
+        })
     
     def forward(self, img: Image) -> Image:
         h, w = img.height, img.width
@@ -57,7 +76,7 @@ class ResizePad(nn.Module):
         return img
     
 
-class RandomCrop(nn.Module):
+class RandomCrop(Transform):
     def __init__(
             self,
             w_crop_ratio: float,
@@ -69,6 +88,12 @@ class RandomCrop(nn.Module):
         )
         self.w_crop_ratio = w_crop_ratio
         self.h_crop_ratio = h_crop_ratio
+
+        self._cfg.update({
+            "type": type(self).__name__,
+            "w_crop_ratio": self.w_crop_ratio,
+            "h_crop_ratio": self.h_crop_ratio
+        })
     
 
     def forward(self, img: Image) -> Image:
@@ -82,7 +107,7 @@ class RandomCrop(nn.Module):
         return F.crop(img, new_y1, new_x1, h_new, w_new)
     
 
-class FixedCrop(nn.Module):
+class FixedCrop(Transform):
     def __init__(
             self,
             w_crop_ratio: float,
@@ -94,6 +119,12 @@ class FixedCrop(nn.Module):
         )
         self.w_crop_ratio = w_crop_ratio
         self.h_crop_ratio = h_crop_ratio
+
+        self._cfg.update({
+            "type": type(self).__name__,
+            "w_crop_ratio": self.w_crop_ratio,
+            "h_crop_ratio": self.h_crop_ratio
+        })
     
 
     def forward(self, img: Image) -> Image:
@@ -105,31 +136,3 @@ class FixedCrop(nn.Module):
         w_new = new_x2 - new_x1
         h_new = new_y2 - new_y1
         return F.crop(img, new_y1, new_x1, h_new, w_new)
-    
-
-def build_transforms(
-        transform_cfgs: Dict[str, Any]
-    ) -> Compose:
-    supported_transforms = {
-        "ResizePad": ResizePad,
-        "RandomCrop": RandomCrop,
-        "FixedCrop": FixedCrop,
-        "ToTensor": ToTensor
-    }
-    transform_cfgs = copy.deepcopy(transform_cfgs)
-    transform_types = transform_cfgs.pop("types")
-    transforms = []
-    for transform_type in transform_types:
-        assert transform_type in supported_transforms.keys(), \
-            (f"Transform type '{transform_type}' is not one of the "
-             f"supported types {list(supported_transforms.keys())}.")
-        transform_cfg = transform_cfgs.get(transform_type, None)
-        if transform_cfg:
-            transforms.append(
-                supported_transforms[transform_type](**transform_cfg)
-            )
-        else:
-            transforms.append(
-                supported_transforms[transform_type]()
-            )
-    transforms = Compose(transforms)

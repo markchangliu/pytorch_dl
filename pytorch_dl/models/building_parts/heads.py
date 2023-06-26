@@ -5,9 +5,10 @@
 """Head module."""
 
 
+import copy
 import torch
 import torch.nn as nn
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 __all__ = ["ResLinearHead", "ResConvHead", "ResLightHead"]
@@ -33,6 +34,12 @@ class ResLinearHead(nn.Module):
         self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
         self.l1_2 = nn.Linear(c_in, num_classes)
 
+        self._cfg = {
+            "type": type(self).__name__,
+            "c_in": c_in,
+            "num_classes": num_classes
+        }
+
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Forward propogation.
@@ -49,6 +56,10 @@ class ResLinearHead(nn.Module):
         X = self.l1_2(X.contiguous().view(X.shape[0], -1))
         # X = self.l1_2(X)
         return X
+    
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
     
 
 class ResConvHead(nn.Module):
@@ -69,6 +80,12 @@ class ResConvHead(nn.Module):
         self.l1_1 = nn.AdaptiveAvgPool2d((1, 1))
         self.l1_2 = nn.Conv2d(c_in, num_classes, 1)
 
+        self._cfg = {
+            "type": type(self).__name__,
+            "c_in": c_in,
+            "num_classes": num_classes
+        }
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward propogation.
 
@@ -85,6 +102,10 @@ class ResConvHead(nn.Module):
         X = self.l1_2(X)
         return X
     
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
+    
 
 class ResLightHead(nn.Module):
     """A light-weight classification head for all ResNet series.
@@ -94,24 +115,20 @@ class ResLightHead(nn.Module):
     tensor from ResStage. The adaptive pool operation of this head will
     then directly output the score tensor of shape (1, 1, num_classes).
     """
-    def __init__(
-            self, 
-            c_in: Optional[int], 
-            num_classes: Optional[int]
-        ) -> None:
+    def __init__(self) -> None:
         """Args:
-            c_in (Optional[int]):
-                The number of input channel, not used here.
-                It's here for the purpose of api consistency.
-            num_classes (Optional[int]):
-                The number of classes, not used here.
-                It's here for the purpose of api consistency.
+            None
         
         Returns:
             None.
         """
         super(ResLightHead, self).__init__()
         self.l1 = nn.AdaptiveAvgPool2d((1, 1))
+
+        self._cfg = {
+            "type": type(self).__name__
+        }
+
     
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Forward propogation.
@@ -127,3 +144,7 @@ class ResLightHead(nn.Module):
         """
         X = self.l1(X)
         return X
+
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)

@@ -37,6 +37,27 @@ class ResNetClassifier(BaseClassifier):
         )
         self.head = ResLinearHead(stage_widths[-1], num_classes)
 
+        self._cfg = {
+            "type": type(self).__name__,
+            "stem": {
+                "type": "ResStem",
+                "c_out": 64
+            },
+            "body": {
+                "type": "ResBody",
+                "c_in": 64,
+                "stage_strides": stage_strides,
+                "stage_depths": stage_depths,
+                "stage_widths": stage_widths,
+                "stage_bottleneck_widths": stage_bottleneck_widths
+            },
+            "head": {
+                "type": "ResLinearHead",
+                "c_in": stage_widths[-1],
+                "num_classes": num_classes
+            }
+        }
+
 
 class ResNet18Classifier(ResNetClassifier):
     def __init__(self, num_classes: int) -> None:

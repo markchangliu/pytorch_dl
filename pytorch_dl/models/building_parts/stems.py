@@ -5,8 +5,10 @@
 """Stem module."""
 
 
+import copy
 import torch
 import torch.nn as nn
+from typing import Dict, Any
 
 
 __all__ = ["ResStem"]
@@ -32,6 +34,11 @@ class ResStem(nn.Module):
             nn.MaxPool2d(3, 2, 1)
         )
 
+        self._cfg = {
+            "type": type(self).__name__,
+            "c_out": c_out
+        }
+
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Forward propogation.
 
@@ -46,3 +53,6 @@ class ResStem(nn.Module):
         X = self.l1(X)
         return X
 
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)

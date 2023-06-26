@@ -17,5 +17,11 @@ from pytorch_dl.models.classifiers.resnet import (
 )
 
 
-__all__ = ["BaseClassifier", "ResNetClassifier", "ResNet18Classifier",
-           "ResNet50Classifier"]
+CLASSIFIERS: Dict[str, Module] = {
+    "BaseClassifier": BaseClassifier,
+    "ResNetClassifier": ResNetClassifier,
+    "ResNet18Classifier": ResNet18Classifier,
+    "ResNet50Classifier": ResNet50Classifier
+}
+
+__all__ = ["CLASSIFIERS"]

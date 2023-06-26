@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from typing import Optional, Dict, Any
 
+from pytorch_dl.core.utils import build_module_from_cfg
 from pytorch_dl.models.building_parts.blocks import ResResidualBlock
 
 
@@ -27,20 +28,14 @@ class Stages(nn.Module):
             block_cfg: Dict[str, Any]
         ) -> None:
         super(Stages, self).__init__()
-        block_cfg = copy.deepcopy(block_cfg)
-        block_type = block_cfg.pop("type")
-        assert block_cfg in _BLOCKS.keys(), \
-            (f"block type '{block_type}' is not one of the "
-             f"supported blocks '{list(_BLOCKS.keys())}'")
-        block = _BLOCKS[block_type]
-        
+        block = build_module_from_cfg("block", block_cfg, _BLOCKS)
         for i in range(d):
-            self.add_module(f"block_{i + 1}", block(**block_cfg))
+            self.add_module(f"block_{i + 1}", block)
         
         self._cfg = {
             "type": type(self).__name__,
             "d": d,
-            "block_cfg": block_cfg
+            "block": block_cfg
         }
 
     

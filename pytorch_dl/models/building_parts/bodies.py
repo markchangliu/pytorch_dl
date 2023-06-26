@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from typing import List, Optional, Dict, Any
 
+from pytorch_dl.core.utils import build_module_from_cfg
 from pytorch_dl.models.building_parts.stages import ResStage
 
 
@@ -26,19 +27,25 @@ class Body(nn.Module):
             stage_cfgs: List[Dict[str, Any]]
         ) -> None:
         super(Body, self).__init__()
+
+        self._cfg = {
+            "type": type(self).__name__,
+            "stages": []
+        }
+
         for i, stage_cfg in enumerate(stage_cfgs):
-            stage_cfg = copy.deepcopy(stage_cfg)
-            stage_type = stage_cfg.pop("type")
-            assert stage_type in _STAGES, \
-                (f"stage type '{stage_type}' is not one of the "
-                 f"supported types '{list(_STAGES.keys())}'.")
-            stage = _STAGES[stage_type]
-            self.add_module("stage_{i + 1}", stage(**stage_cfg))
+            stage = build_module_from_cfg("stage", stage_cfg, _STAGES)
+            self.add_module("stage_{i + 1}", stage)
+            self._cfg["stages"].append(stage_cfg)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         for stage in self.children():
             X = stage(X)
         return X
+    
+    @property
+    def cfg(self) -> Dict[str, Any]:
+        return copy.deepcopy(self._cfg)
 
 
 class ResBody(Body):
