@@ -134,4 +134,5 @@ class DataloaderConfig(Config):
         return dataloader
     
 
-class 
+class TrainConfig(Config):
+    pass
