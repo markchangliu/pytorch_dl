@@ -79,32 +79,43 @@ class ResizePad(Transform):
 class RandomCrop(Transform):
     def __init__(
             self,
-            w_crop_ratio: float,
-            h_crop_ratio: float
+            crop_ratio: Optional[Tuple[float, float]] = None,
+            output_size: Optional[Tuple[int, int]] = None,
         ) -> None:
         super(RandomCrop, self).__init__()
-        assert w_crop_ratio < 1 and h_crop_ratio < 1, (
-            "`w_crop_ratio` and `h_crop_ratio` should be smaller than 1."
-        )
-        self.w_crop_ratio = w_crop_ratio
-        self.h_crop_ratio = h_crop_ratio
+        assert crop_ratio or output_size, \
+            f"You mush provide either `crop_ratio` or `output_size`."
+        
+        if crop_ratio:
+            self.crop_ratio = crop_ratio
+            self.output_size = None
+        else:
+            self.output_size = output_size
+            self.crop_ratio = None
 
         self._cfg.update({
             "type": type(self).__name__,
-            "w_crop_ratio": self.w_crop_ratio,
-            "h_crop_ratio": self.h_crop_ratio
+            "crop_ratio": self.crop_ratio,
+            "output_size": self.output_size
         })
     
 
     def forward(self, img: Image) -> Image:
         w, h = img.size
-        new_x1 = randint(0, int(w * self.w_crop_ratio / 2))
-        new_x2 = randint(int((1 - self.w_crop_ratio / 2) * w), w)
-        new_y1 = randint(0, int(h * self.h_crop_ratio / 2))
-        new_y2 = randint(int((1 - self.h_crop_ratio / 2) * h), h)
-        w_new = new_x2 - new_x1
-        h_new = new_y2 - new_y1
-        return F.crop(img, new_y1, new_x1, h_new, w_new)
+        if self.crop_ratio:
+            w_crop_ratio, h_crop_ratio = self.crop_ratio[0], self.crop_ratio[1]
+            new_x1 = randint(0, int(w * w_crop_ratio / 2))
+            new_x2 = randint(int((1 - w_crop_ratio / 2) * w), w)
+            new_y1 = randint(0, int(h * h_crop_ratio / 2))
+            new_y2 = randint(int((1 - h_crop_ratio / 2) * h), h)
+            w_new = new_x2 - new_x1
+            h_new = new_y2 - new_y1
+            return F.crop(img, new_y1, new_x1, h_new, w_new)
+        else:
+            output_w, output_h = self.output_size[0], self.output_size[1]
+            new_x1 = randint(0, w - output_w)
+            new_y1 = randint(0, h - output_h)
+            return F.crop(img, new_y1, new_x1, output_h, output_w)
     
 
 class FixedCrop(Transform):
