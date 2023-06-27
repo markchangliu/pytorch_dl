@@ -134,5 +134,15 @@ class DataloaderConfig(Config):
         return dataloader
     
 
+class MetricConfig(Config):
+    def __init__(self, metric_config: Dict[str, Any]) -> None:
+        super(MetricConfig, self).__init__()
+        self._cfg.update(metric_config)
+
+    def build(self, metric_registry: Dict[str, Any]) -> object:
+        metric = build_module_from_cfg("metric", self._cfg, metric_registry)
+        return metric
+    
+
 class TrainConfig(Config):
-    pass
+    

@@ -60,7 +60,7 @@ class Timer():
         return info
 
 
-class MetricMeter():
+class ScalarMeter():
     def __init__(
             self, 
             window_size: int,
