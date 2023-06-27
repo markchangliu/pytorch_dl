@@ -26,7 +26,8 @@ class ResNetClassifier(BaseClassifier):
             stage_depths: List[int],
             stage_widths: List[int],
             stage_bottleneck_widths: Optional[List[int]] = None,
-        ):
+        ) -> None:
+        super(BaseClassifier, self).__init__()
         self.stem = ResStem(64)
         self.body = ResBody(
             64,

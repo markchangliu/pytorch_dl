@@ -145,4 +145,4 @@ class MetricConfig(Config):
     
 
 class TrainConfig(Config):
-    
+    pass

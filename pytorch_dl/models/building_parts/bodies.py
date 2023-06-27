@@ -35,7 +35,7 @@ class Body(nn.Module):
 
         for i, stage_cfg in enumerate(stage_cfgs):
             stage = build_module_from_cfg("stage", stage_cfg, _STAGES)
-            self.add_module("stage_{i + 1}", stage)
+            self.add_module(f"stage_{i + 1}", stage)
             self._cfg["stages"].append(stage_cfg)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:

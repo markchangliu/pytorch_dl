@@ -31,9 +31,14 @@ class ClassifierMetric(object):
         valid_modes = ["binary", "micro", "macro"]
         assert mode in valid_modes, \
             (f"`mode` '{mode}' is not one of {valid_modes}.")
-        assert pos_label_name in label_names, \
-            (f"`pos_label_name` '{pos_label_name}' is not one of the labels "
-             f"'{label_names}'.")
+        
+        if pos_label_name is None:
+            pos_label_name = label_names[0]
+        else:
+            assert pos_label_name in label_names, \
+                (f"`pos_label_name` '{pos_label_name}' is not one of the labels "
+                f"'{label_names}'.")
+            
         if mode == "binary" and pos_label_name is None:
             _logger.info(
                 f"`pos_label_name` is not set for binary mode, the first "
@@ -78,8 +83,8 @@ class ClassifierMetric(object):
         accuracy, precision, recall = self.get_metrics()
         repr_str = f"Mode: {self.mode}\n"
         repr_str += (
-            f"{'':^10s}|{'Count':^10s}|{'Accuracy':^10s}|{'Precision':^10s}|"
-            f"{'Recall':^10s}\n"
+            f"{'':<15s}|{'Count':<15s}|{'Accuracy':<15s}|{'Precision':<15s}|"
+            f"{'Recall':<15s}\n"
         )
         if self.mode != "binary":
             for l in self.label_names:
@@ -89,16 +94,16 @@ class ClassifierMetric(object):
                 fp = record_dict["fp"]
                 tn = record_dict["tn"]
                 fn = record_dict["fn"]
-                accuracy_l = (tp + tn) / count
+                accuracy_l = (tp + tn) / (tp + fp + tn + fn)
                 precision_l = tp / (tp + fp)
                 recall_l = tp / (tp + fn)
                 repr_str += (
-                    f"{l.capitalize():<10s}|{count:^10d}|{accuracy_l:^10.4f}|"
-                    f"{precision_l:^10.4f}|{recall_l:^10.4f}\n"
+                    f"{l.capitalize():<15s}|{count:<15d}|{accuracy_l:<15.4f}|"
+                    f"{precision_l:<15.4f}|{recall_l:<15.4f}\n"
                 )
         repr_str += (
-            f"{'Overall':<10s}|{total:^10s}|{accuracy:^10.4f}"
-            f"{precision:^10.4f}|{recall:^10.4f}"
+            f"{'Overall':<15s}|{total:<15d}|{accuracy:<15.4f}|"
+            f"{precision:<15.4f}|{recall:<15.4f}"
         )
         return repr_str
 
@@ -151,6 +156,7 @@ class ClassifierMetric(object):
     
     
     def reset(self) -> None:
+        self._record_dict["total"] = 0
         if self.mode == "binary":
             self._record_dict.update(
                 {"tp": 0, "fp": 0, "tn": 0, "fn": 0}
@@ -189,7 +195,7 @@ class ClassifierMetric(object):
                 fp += record_dict["fp"]
                 tn += record_dict["tn"]
                 fn += record_dict["fn"]
-            accuracy = (tp + tn) / total
+            accuracy = (tp + tn) / (tp + fp + tn + fn)
             precision = tp / (tp + fp)
             recall = tp / (tp + fn)
         elif self.mode == "macro":
@@ -202,7 +208,7 @@ class ClassifierMetric(object):
                 fp_l = record_dict["fp"]
                 tn_l = record_dict["tn"]
                 fn_l = record_dict["fn"]
-                accuracy += (tp_l + tn_l) / count_l
+                accuracy += (tp_l + tn_l) / (tp_l + fp_l + tn_l + fn_l)
                 precision += tp_l / (tp_l + fp_l)
                 recall += tp_l / (tp_l + fn_l)
             accuracy /= len(self.label_ids)

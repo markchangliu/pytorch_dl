@@ -84,11 +84,11 @@ class SingleGpuRunner(object):
             iter_losses.append(iter_loss.item())
             metric.update(y_pred, y_gt)
         
-            if (batch_idx + 1) % self.iter_log_interval == 0:
+            if (batch_idx + 1) % self.log_iter_interval == 0:
                 _logger.info(
                     f"{mode.capitalize()} epoch, "
                     f"iter {num_samples}/{total_num_samples}, "
-                    f"loss {iter_loss.item()}."
+                    f"loss {iter_loss.item():.4f}."
                 )
         
         _logger.info(
@@ -125,25 +125,23 @@ class SingleGpuRunner(object):
             optimizer.zero_grad()
             iter_losses.append(iter_loss.item())
             metric.update(y_pred, y_gt)
-            if (batch_idx + 1) % self.iter_log_interval == 0:
+            if (batch_idx + 1) % self.log_iter_interval == 0:
                 _logger.info(
                     f"Train epoch {epoch_idx + 1}/{self.num_epoches}, "
                     f"iter {num_samples}/{total_num_samples}, "
-                    f"loss = {iter_loss.item()}."
+                    f"loss = {iter_loss.item():.4f}."
                 )
         
         scheduler.step()
 
         _logger.info(
             f"Train epoch {epoch_idx + 1}/{self.num_epoches}, "
-            f"loss = {mean(iter_losses)}, "
-            f"evaluation result:\n{str(metric)}"
+            f"loss = {mean(iter_losses):.4f}."
         )
 
     
     def train(
             self,
-            num_epoches: int,
             model: Module,
             train_dataloader: DataLoader,
             val_dataloader: DataLoader,
@@ -152,14 +150,13 @@ class SingleGpuRunner(object):
             loss_func: Callable[[Any, Any], Tensor],
             metric: object,
         ) -> None:
-        _logger.info(f"Training process spthts...")
+        _logger.info(f"Training process starts...")
 
         model = model.cuda(self.device_id)
         
-        for epoch_idx in range(num_epoches):
+        for epoch_idx in range(self.num_epoches):
             self._train_one_epoch(
-                epoch_idx + 1,
-                num_epoches,
+                epoch_idx,
                 model,
                 train_dataloader,
                 optimizer,
@@ -171,13 +168,15 @@ class SingleGpuRunner(object):
             if (epoch_idx + 1) % self.val_epoch_interval == 0:
                 self._test_one_epoch(model, val_dataloader, loss_func, metric,"val",)
             
-            if (epoch_idx + 1) % self.checkpoint_interval == 0:
+            if (epoch_idx + 1) % self.checkpoint_epoch_interval == 0:
                 checkpoint_path = os.path.join(
                     self.work_dir, 
                     f"epoch_{epoch_idx}.pth"
                 )
                 save_checkpoint(model, optimizer, scheduler, checkpoint_path)
         
+        self._test_one_epoch(model, val_dataloader, loss_func, metric,"val",)
+        save_checkpoint(model, optimizer, scheduler, os.path.join(self.work_dir, "epoch_last.pth"))
         _logger.info("Model training complete.")
 
 
