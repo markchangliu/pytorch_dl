@@ -76,6 +76,22 @@ class ResizePad(Transform):
         return img
     
 
+class Pad(Transform):
+    def __init__(self, pad_size: Tuple[int, int]):
+        super(Pad, self).__init__()
+        self.pad_size = pad_size
+
+    def forward(self, img: Image) -> Image:
+        w, h = img.size
+        pad_w, pad_h = self.pad_size[0], self.pad_size[1]
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        img = F.pad(img, (pad_left, pad_top, pad_right, pad_bottom))
+        return img
+    
+
 class RandomCrop(Transform):
     def __init__(
             self,
